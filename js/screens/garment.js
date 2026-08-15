@@ -43,23 +43,33 @@ function photoPicker(onPhoto, label = 'Take / upload photo') {
   return el('div', {}, input, btn);
 }
 
-async function processGarment(pad, dataUrl, tolerance = 42) {
+async function processGarment(pad, dataUrl, tolerance = 42, noMask = false) {
   pad.replaceChildren(el('div', { class: 'empty-state' },
     el('div', { class: 'big' }, '✂️'),
-    el('div', {}, 'Removing background…')));
+    el('div', {}, noMask ? 'Loading photo…' : 'Removing background…')));
   const img = await loadImage(dataUrl);
-  const seg = await ai.segmentGarment(img, { tolerance });
   const p = state.project;
   const prevType = p.garment?.type ?? 't-shirt';
   const prevWidth = p.garment?.widthCm;
-  p.garment = newGarment({
-    image: dataUrl,
-    maskImage: seg.dataUrl,
-    bbox: seg.bbox,
-    type: prevType,
-    widthCm: prevWidth,
-  });
+
+  let maskImage, bbox, coverage;
+  if (noMask) {
+    // Escape hatch for tricky photos (busy backdrop, weathered fabric close
+    // to the background color): design directly on the untouched photo.
+    maskImage = dataUrl;
+    bbox = { x: 0, y: 0, w: img.naturalWidth, h: img.naturalHeight };
+    coverage = 1;
+  } else {
+    const seg = await ai.segmentGarment(img, { tolerance });
+    maskImage = seg.dataUrl;
+    bbox = seg.bbox;
+    coverage = seg.coverage;
+  }
+
+  p.garment = newGarment({ image: dataUrl, maskImage, bbox, type: prevType, widthCm: prevWidth });
   p.garment._tolerance = tolerance;
+  p.garment.noMask = noMask;
+  p.garment._coverage = coverage;
   saveProject();
   pad.replaceChildren();
   renderGarmentCard(pad);
@@ -75,6 +85,19 @@ function renderGarmentCard(pad) {
     type: 'range', min: 5, max: 95, value: g._tolerance ?? 42,
   });
   tolSlider.addEventListener('change', () => processGarment(pad, g.image, Number(tolSlider.value)));
+
+  // Cutout looks suspiciously empty or suspiciously full → likely a photo
+  // the heuristic can't handle; surface the escape hatch prominently.
+  const lowConfidence = !g.noMask && (g._coverage != null) && (g._coverage < 0.12 || g._coverage > 0.92);
+
+  const asIsBtn = el('button', {
+    class: 'btn small secondary',
+    onclick: () => processGarment(pad, g.image, g._tolerance ?? 42, true),
+  }, 'Use photo as-is');
+  const reRunBtn = el('button', {
+    class: 'btn small secondary',
+    onclick: () => processGarment(pad, g.image, g._tolerance ?? 42, false),
+  }, 'Remove background');
 
   const typeSelect = el('select', {},
     ...Object.entries(GARMENT_TYPES).map(([k, v]) =>
@@ -96,15 +119,24 @@ function renderGarmentCard(pad) {
     frame,
     el('div', { class: 'card' },
       el('h3', {}, 'Background removal'),
-      el('div', { class: 'muted' }, 'If too much or too little was removed, adjust and it re-runs.'),
-      el('label', { class: 'field' }, 'Removal strength', tolSlider),
+      g.noMask
+        ? el('div', { class: 'muted' }, 'Using the untouched photo — nothing was removed.')
+        : el('div', { class: 'muted' }, 'If too much or too little was removed, adjust and it re-runs. Faded or weathered fabric is protected: only background touching the photo edges is removed.'),
+      lowConfidence
+        ? el('div', { class: 'small-note', style: 'color:var(--accent)' },
+            'This photo looks tricky for automatic removal (busy backdrop or fabric very close to the background color). You can design on the original photo instead — everything else works the same.')
+        : null,
+      g.noMask ? null : el('label', { class: 'field' }, 'Removal strength', tolSlider),
+      el('div', { class: 'btn-row', style: 'margin-bottom:0' }, g.noMask ? reRunBtn : asIsBtn),
     ),
     el('div', { class: 'card' },
       el('h3', {}, 'Real-world scale'),
       el('div', { class: 'muted' },
-        'Piece dimensions are calculated from the garment’s real width. Measure across the chest (or widest point in the photo) for accurate cutting patterns.'),
+        g.noMask
+          ? 'Since the full photo is the workspace, enter the real-world width the photo covers edge-to-edge (lay a tape measure in frame next time — it makes this exact).'
+          : 'Piece dimensions are calculated from the garment’s real width. Measure across the chest (or widest point in the photo) for accurate cutting patterns.'),
       el('label', { class: 'field' }, 'Garment type', typeSelect),
-      el('label', { class: 'field' }, 'Measured width (cm)', widthInput),
+      el('label', { class: 'field' }, g.noMask ? 'Width covered by the photo (cm)' : 'Measured width (cm)', widthInput),
       el('div', { class: 'small-note' },
         `Current calibration: ${pxPerMm(p).toFixed(2)} px per mm on this photo.`),
     ),
