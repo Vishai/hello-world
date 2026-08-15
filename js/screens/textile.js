@@ -63,7 +63,11 @@ async function addTextile(pad, dataUrl) {
     el('div', { class: 'big' }, '🪡'), el('div', {}, 'Extracting material…')));
   const img = await loadImage(dataUrl);
   const swatch = ai.makeSwatch(img);
-  const textile = newTextile({ image: dataUrl, swatch });
+  const textile = newTextile({
+    image: dataUrl,
+    swatch,
+    imageAspect: img.naturalHeight / img.naturalWidth,
+  });
   await saveTextile(textile);
   draw(pad);
   editTextile(pad, textile);
@@ -73,10 +77,14 @@ function editTextile(pad, t) {
   {
     const name = el('input', { type: 'text', value: t.name });
     const area = el('input', { type: 'number', min: 0.05, step: 0.05, value: t.estimatedAreaM2 });
+    const photoW = el('input', { type: 'number', min: 5, max: 300, step: 1, value: t.photoWidthCm ?? 40 });
     const cost = el('input', { type: 'number', min: 0, step: 0.5, value: t.acquisitionCost ?? '' , placeholder: 'optional'});
     const content = el('div', {},
       el('div', { class: 'photo-frame' }, el('img', { src: t.swatch, alt: '' })),
       el('label', { class: 'field' }, 'Name', name),
+      el('label', { class: 'field' }, 'Width of fabric shown in the photo (cm)', photoW),
+      el('div', { class: 'small-note' },
+        'Sets the print scale on your design: pieces show this fabric at real size, the way a cut piece actually would.'),
       el('label', { class: 'field' }, 'Estimated usable material (m²)', area),
       el('div', { class: 'small-note' },
         'Reclaimed materials are finite — this feeds the cutting-layout utilization estimate. A pair of adult jeans yields roughly 0.5 m²; a maxi dress 1.5–2 m².'),
@@ -84,6 +92,7 @@ function editTextile(pad, t) {
       el('div', { class: 'btn-row' },
         el('button', { class: 'btn', onclick: async () => {
           t.name = name.value.trim() || t.name;
+          t.photoWidthCm = parseFloat(photoW.value) || t.photoWidthCm || 40;
           t.estimatedAreaM2 = parseFloat(area.value) || t.estimatedAreaM2;
           t.remainingAreaM2 = Math.min(t.remainingAreaM2, t.estimatedAreaM2) || t.estimatedAreaM2;
           t.acquisitionCost = cost.value === '' ? null : parseFloat(cost.value);

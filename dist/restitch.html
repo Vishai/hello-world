@@ -1178,26 +1178,22 @@ function boxBlurMask(src, w, h, radius) {
 }
 
 /**
- * Build a tileable swatch from the central region of a textile photo.
- * Center crop avoids edges/background; mirror-tiling hides seams so the
- * texture can repeat across large appliqué pieces.
+ * Build a display swatch from the central region of a textile photo:
+ * a plain center crop, faithful to the fabric as photographed.
+ *
+ * Deliberately NOT mirror-tiled: mirroring hides tiling seams on fine
+ * textures but turns any large motif (a knit logo, a big floral print)
+ * into a kaleidoscope. Piece fills use the original photo at physical
+ * scale instead (see designer/preview), so a cut piece shows one
+ * contiguous region of fabric — like the real scissors would.
  */
-function extractSwatch(img, tile = 256) {
+function extractSwatch(img, tile = 512) {
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
-  const crop = Math.floor(Math.min(w, h) * 0.6);
+  const crop = Math.floor(Math.min(w, h) * 0.7);
   const sx = Math.floor((w - crop) / 2), sy = Math.floor((h - crop) / 2);
-
-  const ctx = ctx2d(tile * 2, tile * 2);
-  // 2×2 mirrored tiling → seamless repeat
-  ctx.save(); ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-  ctx.save(); ctx.translate(tile * 2, 0); ctx.scale(-1, 1);
-  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-  ctx.save(); ctx.translate(0, tile * 2); ctx.scale(1, -1);
-  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-  ctx.save(); ctx.translate(tile * 2, tile * 2); ctx.scale(-1, -1);
-  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-
+  const ctx = ctx2d(tile, tile);
+  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile);
   return ctx.canvas.toDataURL('image/jpeg', 0.85);
 }
 
@@ -1422,17 +1418,26 @@ function newGarment({ image, maskImage, bbox, type = 't-shirt', widthCm }) {
   };
 }
 
-function newTextile({ image, swatch, name, areaM2 = 0.5, cost = null }) {
+function newTextile({ image, swatch, name, areaM2 = 0.5, cost = null, imageAspect = 1 }) {
   return {
     id: uid('tex'),
     name: name || 'Reclaimed textile',
-    image,           // original photo
-    swatch,          // tileable texture data URL
+    image,           // original photo — also the piece fill, at physical scale
+    swatch,          // display crop (library thumbnails)
+    imageAspect,     // photo height / width, for undistorted pattern fills
+    photoWidthCm: 40, // real-world width the photo covers; sets fill scale
     estimatedAreaM2: areaM2,
     remainingAreaM2: areaM2,
     acquisitionCost: cost,
     createdAt: Date.now(),
   };
+}
+
+/** Fill-pattern metrics for a textile: photo tile size in mm (with defaults
+ *  for records created before physical scale existed). */
+function textileTileMm(t) {
+  const wMm = (t?.photoWidthCm ?? 40) * 10;
+  return { wMm, hMm: wMm * (t?.imageAspect ?? 1) };
 }
 
 /**
@@ -1821,7 +1826,11 @@ async function addTextile(pad, dataUrl) {
     el('div', { class: 'big' }, '🪡'), el('div', {}, 'Extracting material…')));
   const img = await loadImage(dataUrl);
   const swatch = ai.makeSwatch(img);
-  const textile = newTextile({ image: dataUrl, swatch });
+  const textile = newTextile({
+    image: dataUrl,
+    swatch,
+    imageAspect: img.naturalHeight / img.naturalWidth,
+  });
   await saveTextile(textile);
   draw(pad);
   editTextile(pad, textile);
@@ -1831,10 +1840,14 @@ function editTextile(pad, t) {
   {
     const name = el('input', { type: 'text', value: t.name });
     const area = el('input', { type: 'number', min: 0.05, step: 0.05, value: t.estimatedAreaM2 });
+    const photoW = el('input', { type: 'number', min: 5, max: 300, step: 1, value: t.photoWidthCm ?? 40 });
     const cost = el('input', { type: 'number', min: 0, step: 0.5, value: t.acquisitionCost ?? '' , placeholder: 'optional'});
     const content = el('div', {},
       el('div', { class: 'photo-frame' }, el('img', { src: t.swatch, alt: '' })),
       el('label', { class: 'field' }, 'Name', name),
+      el('label', { class: 'field' }, 'Width of fabric shown in the photo (cm)', photoW),
+      el('div', { class: 'small-note' },
+        'Sets the print scale on your design: pieces show this fabric at real size, the way a cut piece actually would.'),
       el('label', { class: 'field' }, 'Estimated usable material (m²)', area),
       el('div', { class: 'small-note' },
         'Reclaimed materials are finite — this feeds the cutting-layout utilization estimate. A pair of adult jeans yields roughly 0.5 m²; a maxi dress 1.5–2 m².'),
@@ -1842,6 +1855,7 @@ function editTextile(pad, t) {
       el('div', { class: 'btn-row' },
         el('button', { class: 'btn', onclick: async () => {
           t.name = name.value.trim() || t.name;
+          t.photoWidthCm = parseFloat(photoW.value) || t.photoWidthCm || 40;
           t.estimatedAreaM2 = parseFloat(area.value) || t.estimatedAreaM2;
           t.remainingAreaM2 = Math.min(t.remainingAreaM2, t.estimatedAreaM2) || t.estimatedAreaM2;
           t.acquisitionCost = cost.value === '' ? null : parseFloat(cost.value);
@@ -2212,11 +2226,18 @@ async function renderDesigner(container) {
     const t = getTextile(textileId);
     if (!t) return null;
     const id = `pat_${textileId}`;
-    const tileMm = 80; // pattern tile ≈ 8 cm of fabric (piece-local units are mm)
+    // Fill pieces with the ORIGINAL fabric photo at physical scale (the photo
+    // covers photoWidthCm of real fabric; piece-local units are mm). No
+    // mirror-tiling — a big motif stays a motif instead of a kaleidoscope,
+    // and a cut piece shows one contiguous region like real scissors would.
+    const { wMm, hMm } = textileTileMm(t);
     const pat = svgEl('pattern', {
-      id, patternUnits: 'userSpaceOnUse', width: tileMm, height: tileMm,
+      id, patternUnits: 'userSpaceOnUse', width: wMm, height: hMm,
     });
-    pat.append(svgEl('image', { href: t.swatch, x: 0, y: 0, width: tileMm, height: tileMm, preserveAspectRatio: 'xMidYMid slice' }));
+    pat.append(svgEl('image', {
+      href: t.image || t.swatch, x: 0, y: 0, width: wMm, height: hMm,
+      preserveAspectRatio: 'none',
+    }));
     defs.append(pat);
     patternIds.set(textileId, id);
     return id;
@@ -2643,7 +2664,7 @@ async function renderMockup(p) {
   async function swatchImage(textileId) {
     if (!swatchCache.has(textileId)) {
       const t = getTextile(textileId);
-      swatchCache.set(textileId, t ? await loadImage(t.swatch) : null);
+      swatchCache.set(textileId, t ? await loadImage(t.image || t.swatch) : null);
     }
     return swatchCache.get(textileId);
   }
@@ -2676,10 +2697,16 @@ async function renderMockup(p) {
     ctx.clip(path);
     const sw = await swatchImage(piece.textileId);
     if (sw) {
+      // The fabric photo at physical scale (photoWidthCm of real fabric),
+      // independent of piece scale — like real printed/knitted cloth. Each
+      // piece samples a different region of the photo (offset derived from
+      // its position), the way separately-cut pieces actually would.
       const pat = ctx.createPattern(sw, 'repeat');
-      const tileMm = 80;
-      const m = new DOMMatrix().scale(tileMm / sw.width / piece.scale);
-      pat.setTransform(m);
+      const { wMm, hMm } = textileTileMm(getTextile(piece.textileId));
+      const k = wMm / sw.width / piece.scale;
+      const ox = ((piece.x * 0.61) % wMm + wMm) % wMm;
+      const oy = ((piece.y * 0.61) % hMm + hMm) % hMm;
+      pat.setTransform(new DOMMatrix().translate(-ox, -oy).scale(k));
       ctx.fillStyle = pat;
     } else {
       ctx.fillStyle = '#b9917b';

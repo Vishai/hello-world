@@ -172,26 +172,22 @@ function boxBlurMask(src, w, h, radius) {
 }
 
 /**
- * Build a tileable swatch from the central region of a textile photo.
- * Center crop avoids edges/background; mirror-tiling hides seams so the
- * texture can repeat across large appliqué pieces.
+ * Build a display swatch from the central region of a textile photo:
+ * a plain center crop, faithful to the fabric as photographed.
+ *
+ * Deliberately NOT mirror-tiled: mirroring hides tiling seams on fine
+ * textures but turns any large motif (a knit logo, a big floral print)
+ * into a kaleidoscope. Piece fills use the original photo at physical
+ * scale instead (see designer/preview), so a cut piece shows one
+ * contiguous region of fabric — like the real scissors would.
  */
-export function extractSwatch(img, tile = 256) {
+export function extractSwatch(img, tile = 512) {
   const w = img.naturalWidth || img.width;
   const h = img.naturalHeight || img.height;
-  const crop = Math.floor(Math.min(w, h) * 0.6);
+  const crop = Math.floor(Math.min(w, h) * 0.7);
   const sx = Math.floor((w - crop) / 2), sy = Math.floor((h - crop) / 2);
-
-  const ctx = ctx2d(tile * 2, tile * 2);
-  // 2×2 mirrored tiling → seamless repeat
-  ctx.save(); ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-  ctx.save(); ctx.translate(tile * 2, 0); ctx.scale(-1, 1);
-  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-  ctx.save(); ctx.translate(0, tile * 2); ctx.scale(1, -1);
-  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-  ctx.save(); ctx.translate(tile * 2, tile * 2); ctx.scale(-1, -1);
-  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
-
+  const ctx = ctx2d(tile, tile);
+  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile);
   return ctx.canvas.toDataURL('image/jpeg', 0.85);
 }
 

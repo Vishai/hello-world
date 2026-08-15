@@ -12,7 +12,7 @@
  */
 
 import { el, loadImage } from '../util.js';
-import { state, saveProject, pxPerMm, getTextile } from '../state.js';
+import { state, saveProject, pxPerMm, getTextile, textileTileMm } from '../state.js';
 import { navigate } from '../app.js';
 
 export async function renderPreview(container) {
@@ -77,7 +77,7 @@ async function renderMockup(p) {
   async function swatchImage(textileId) {
     if (!swatchCache.has(textileId)) {
       const t = getTextile(textileId);
-      swatchCache.set(textileId, t ? await loadImage(t.swatch) : null);
+      swatchCache.set(textileId, t ? await loadImage(t.image || t.swatch) : null);
     }
     return swatchCache.get(textileId);
   }
@@ -110,10 +110,16 @@ async function renderMockup(p) {
     ctx.clip(path);
     const sw = await swatchImage(piece.textileId);
     if (sw) {
+      // The fabric photo at physical scale (photoWidthCm of real fabric),
+      // independent of piece scale — like real printed/knitted cloth. Each
+      // piece samples a different region of the photo (offset derived from
+      // its position), the way separately-cut pieces actually would.
       const pat = ctx.createPattern(sw, 'repeat');
-      const tileMm = 80;
-      const m = new DOMMatrix().scale(tileMm / sw.width / piece.scale);
-      pat.setTransform(m);
+      const { wMm, hMm } = textileTileMm(getTextile(piece.textileId));
+      const k = wMm / sw.width / piece.scale;
+      const ox = ((piece.x * 0.61) % wMm + wMm) % wMm;
+      const oy = ((piece.y * 0.61) % hMm + hMm) % hMm;
+      pat.setTransform(new DOMMatrix().translate(-ox, -oy).scale(k));
       ctx.fillStyle = pat;
     } else {
       ctx.fillStyle = '#b9917b';

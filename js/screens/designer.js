@@ -13,7 +13,7 @@
  */
 
 import { el, svgEl, uid, loadImage, showModal, fmtMm, appAlert } from '../util.js';
-import { state, saveProject, pxPerMm, getTextile } from '../state.js';
+import { state, saveProject, pxPerMm, getTextile, textileTileMm } from '../state.js';
 import { navigate } from '../app.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -53,11 +53,18 @@ export async function renderDesigner(container) {
     const t = getTextile(textileId);
     if (!t) return null;
     const id = `pat_${textileId}`;
-    const tileMm = 80; // pattern tile ≈ 8 cm of fabric (piece-local units are mm)
+    // Fill pieces with the ORIGINAL fabric photo at physical scale (the photo
+    // covers photoWidthCm of real fabric; piece-local units are mm). No
+    // mirror-tiling — a big motif stays a motif instead of a kaleidoscope,
+    // and a cut piece shows one contiguous region like real scissors would.
+    const { wMm, hMm } = textileTileMm(t);
     const pat = svgEl('pattern', {
-      id, patternUnits: 'userSpaceOnUse', width: tileMm, height: tileMm,
+      id, patternUnits: 'userSpaceOnUse', width: wMm, height: hMm,
     });
-    pat.append(svgEl('image', { href: t.swatch, x: 0, y: 0, width: tileMm, height: tileMm, preserveAspectRatio: 'xMidYMid slice' }));
+    pat.append(svgEl('image', {
+      href: t.image || t.swatch, x: 0, y: 0, width: wMm, height: hMm,
+      preserveAspectRatio: 'none',
+    }));
     defs.append(pat);
     patternIds.set(textileId, id);
     return id;

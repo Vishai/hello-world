@@ -50,17 +50,26 @@ export function newGarment({ image, maskImage, bbox, type = 't-shirt', widthCm }
   };
 }
 
-export function newTextile({ image, swatch, name, areaM2 = 0.5, cost = null }) {
+export function newTextile({ image, swatch, name, areaM2 = 0.5, cost = null, imageAspect = 1 }) {
   return {
     id: uid('tex'),
     name: name || 'Reclaimed textile',
-    image,           // original photo
-    swatch,          // tileable texture data URL
+    image,           // original photo — also the piece fill, at physical scale
+    swatch,          // display crop (library thumbnails)
+    imageAspect,     // photo height / width, for undistorted pattern fills
+    photoWidthCm: 40, // real-world width the photo covers; sets fill scale
     estimatedAreaM2: areaM2,
     remainingAreaM2: areaM2,
     acquisitionCost: cost,
     createdAt: Date.now(),
   };
+}
+
+/** Fill-pattern metrics for a textile: photo tile size in mm (with defaults
+ *  for records created before physical scale existed). */
+export function textileTileMm(t) {
+  const wMm = (t?.photoWidthCm ?? 40) * 10;
+  return { wMm, hMm: wMm * (t?.imageAspect ?? 1) };
 }
 
 /**
