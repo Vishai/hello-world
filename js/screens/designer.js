@@ -12,7 +12,7 @@
  * autosave; rendering is derived from that model, never the reverse (§19).
  */
 
-import { el, svgEl, uid, loadImage, showModal, fmtMm } from '../util.js';
+import { el, svgEl, uid, loadImage, showModal, fmtMm, appAlert } from '../util.js';
 import { state, saveProject, pxPerMm, getTextile } from '../state.js';
 import { navigate } from '../app.js';
 
@@ -363,7 +363,7 @@ export async function renderDesigner(container) {
     const set = selectionSet();
     if (!set.length) return;
     if (!state.textiles.length) {
-      alert('Photograph a donor textile first (Textiles tab).');
+      appAlert('Photograph a donor textile first (Textiles tab).');
       return;
     }
     const grid = el('div', { class: 'swatch-grid' });

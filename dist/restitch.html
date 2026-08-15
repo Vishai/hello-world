@@ -1,0 +1,2880 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14110f">
+<title>ReStitch</title>
+</head>
+<body>
+<style>
+/* ReStitch — mobile-first styling */
+:root {
+  --bg: #14110f;
+  --panel: #201c19;
+  --panel-2: #2a2521;
+  --line: #3a332d;
+  --text: #f3ede6;
+  --text-dim: #a89e93;
+  --accent: #e8734a;      /* stitched terracotta */
+  --accent-2: #7fae7a;    /* leaf green */
+  --danger: #d9534f;
+  --radius: 14px;
+  --tabbar-h: 60px;
+  --topbar-h: 52px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overscroll-behavior: none;
+}
+#app { display: flex; flex-direction: column; height: 100dvh; }
+
+#topbar {
+  display: flex; align-items: center; gap: 10px;
+  height: var(--topbar-h); padding: 0 14px;
+  padding-top: env(safe-area-inset-top);
+  background: var(--panel); border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+#topbar h1 { font-size: 17px; font-weight: 650; margin: 0; flex: 1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#save-indicator { font-size: 12px; color: var(--text-dim); }
+
+#screen { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+.pad { padding: 16px; }
+
+#tabbar {
+  display: flex; flex: 0 0 auto;
+  height: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--panel); border-top: 1px solid var(--line);
+}
+#tabbar[hidden] { display: none; }
+.tab {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 2px; background: none; border: none; color: var(--text-dim);
+  font-size: 10.5px; cursor: pointer; padding: 4px 0;
+}
+.tab .tab-ico { font-size: 19px; line-height: 1; }
+.tab.active { color: var(--accent); }
+
+/* Generic UI */
+.icon-btn {
+  background: none; border: none; color: var(--text); font-size: 20px;
+  width: 36px; height: 36px; border-radius: 50%; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.icon-btn:active { background: var(--panel-2); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  background: var(--accent); color: #1b120d; border: none;
+  border-radius: var(--radius); padding: 12px 18px;
+  font-size: 15px; font-weight: 650; cursor: pointer;
+  text-decoration: none;
+}
+.btn:disabled { opacity: .45; cursor: default; }
+.btn.secondary { background: var(--panel-2); color: var(--text); border: 1px solid var(--line); }
+.btn.danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+.btn.small { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+.btn.block { display: flex; width: 100%; }
+.btn-row { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+
+.card {
+  background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 14px; margin-bottom: 12px;
+}
+.card h3 { margin: 0 0 6px; font-size: 15px; }
+.muted { color: var(--text-dim); font-size: 13px; }
+.small-note { color: var(--text-dim); font-size: 12px; margin-top: 6px; }
+
+input[type=text], input[type=number], select, textarea {
+  width: 100%; background: var(--panel-2); border: 1px solid var(--line);
+  color: var(--text); border-radius: 10px; padding: 10px 12px; font-size: 15px;
+}
+label.field { display: block; margin: 10px 0; font-size: 13px; color: var(--text-dim); }
+label.field > input, label.field > select { margin-top: 4px; }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+
+.empty-state { text-align: center; padding: 48px 24px; color: var(--text-dim); }
+.empty-state .big { font-size: 44px; margin-bottom: 10px; }
+
+/* Projects list */
+.project-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 12px; margin-bottom: 10px; cursor: pointer; color: var(--text); text-align: left;
+}
+.project-thumb {
+  width: 56px; height: 56px; border-radius: 10px; object-fit: cover;
+  background: var(--panel-2); flex: 0 0 auto;
+}
+.project-row .grow { flex: 1; min-width: 0; }
+.project-row .name { font-weight: 650; }
+
+/* Photo capture panels */
+.photo-frame {
+  position: relative; width: 100%; border-radius: var(--radius);
+  overflow: hidden; background:
+    repeating-conic-gradient(#26221e 0% 25%, #201c19 0% 50%) 0 0 / 20px 20px;
+  border: 1px solid var(--line);
+}
+.photo-frame img, .photo-frame canvas { display: block; width: 100%; height: auto; }
+
+/* Swatch grid */
+.swatch-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 10px; }
+.swatch {
+  border: 2px solid var(--line); border-radius: 12px; overflow: hidden;
+  background: var(--panel-2); cursor: pointer; padding: 0; position: relative;
+}
+.swatch.selected { border-color: var(--accent); }
+.swatch img { width: 100%; height: 72px; object-fit: cover; display: block; }
+.swatch .cap { font-size: 11px; padding: 4px 6px; color: var(--text-dim);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+
+/* Artwork gallery */
+.art-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 10px; }
+.art-tile {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px;
+  padding: 8px; cursor: pointer; color: var(--text);
+}
+.art-tile svg { width: 100%; height: 72px; display: block; }
+.art-tile .cap { font-size: 11px; color: var(--text-dim); margin-top: 4px; text-align: center; }
+
+/* Designer */
+#designer-wrap { position: relative; touch-action: none; user-select: none; -webkit-user-select: none; }
+#designer-svg { display: block; width: 100%; height: auto; }
+.piece { cursor: move; }
+.piece path { vector-effect: non-scaling-stroke; }
+.piece.selected .outline { stroke: var(--accent); stroke-width: 2px; stroke-dasharray: 6 4; }
+.handle { fill: var(--accent); stroke: #1b120d; stroke-width: 1.5; cursor: nwse-resize; }
+.handle.rotate { fill: var(--accent-2); cursor: grab; }
+#designer-toolbar {
+  display: flex; gap: 6px; padding: 8px 10px; overflow-x: auto;
+  background: var(--panel); border-top: 1px solid var(--line);
+  position: sticky; bottom: 0;
+}
+#designer-toolbar .icon-btn { font-size: 17px; flex: 0 0 auto; width: 40px; height: 40px; border-radius: 10px; }
+#designer-toolbar .icon-btn:disabled { opacity: .3; }
+
+/* Make screen */
+.piece-list { width: 100%; border-collapse: collapse; font-size: 13px; }
+.piece-list th, .piece-list td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); }
+.piece-list th { color: var(--text-dim); font-weight: 600; font-size: 12px; }
+.layout-preview { background: #fff; border-radius: 10px; overflow: hidden; }
+.layout-preview svg { display: block; width: 100%; height: auto; }
+
+.pill {
+  display: inline-block; padding: 2px 9px; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--line);
+  color: var(--text-dim); font-size: 11px;
+}
+.section-title { font-size: 13px; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text-dim); margin: 18px 0 8px; }
+hr.sep { border: none; border-top: 1px solid var(--line); margin: 16px 0; }
+
+/* Modal */
+.modal-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 50;
+}
+.modal {
+  background: var(--panel); border-radius: 18px 18px 0 0; width: 100%; max-width: 560px;
+  padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+  max-height: 85dvh; overflow-y: auto;
+}
+.modal h2 { margin: 0 0 12px; font-size: 17px; }
+
+@media (min-width: 700px) {
+  #screen > .pad, #screen > .screen-inner { max-width: 700px; margin: 0 auto; }
+  .modal { border-radius: 18px; margin-bottom: 10vh; }
+  .modal-backdrop { align-items: center; }
+}
+</style>
+<div id="app">
+    <header id="topbar">
+      <button id="back-btn" class="icon-btn" hidden aria-label="Back">&#8592;</button>
+      <h1 id="screen-title">ReStitch</h1>
+      <span id="save-indicator" aria-live="polite"></span>
+    </header>
+    <main id="screen"></main>
+    <nav id="tabbar" hidden>
+      <button data-tab="garment"  class="tab"><span class="tab-ico">&#128085;</span><span>Garment</span></button>
+      <button data-tab="textile"  class="tab"><span class="tab-ico">&#129525;</span><span>Textiles</span></button>
+      <button data-tab="artwork"  class="tab"><span class="tab-ico">&#10047;</span><span>Artwork</span></button>
+      <button data-tab="designer" class="tab"><span class="tab-ico">&#9998;</span><span>Design</span></button>
+      <button data-tab="preview"  class="tab"><span class="tab-ico">&#128065;</span><span>Preview</span></button>
+      <button data-tab="make"     class="tab"><span class="tab-ico">&#9986;</span><span>Make</span></button>
+    </nav>
+  </div>
+<script type="module">
+// ───────────────────────── js/util.js ─────────────────────────
+/** util.js — small DOM + misc helpers. */
+
+function uid(prefix = 'id') {
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** el('div', {class: 'card', onclick: fn}, child1, 'text', ...) */
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v == null) continue;
+    if (k.startsWith('on') && typeof v === 'function') {
+      node.addEventListener(k.slice(2), v);
+    } else if (k === 'dataset') {
+      Object.assign(node.dataset, v);
+    } else if (k === 'html') {
+      node.innerHTML = v;
+    } else {
+      node.setAttribute(k, v);
+    }
+  }
+  for (const c of children.flat()) {
+    if (c == null) continue;
+    node.append(c.nodeType ? c : document.createTextNode(String(c)));
+  }
+  return node;
+}
+
+function svgEl(tag, attrs = {}) {
+  const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v != null) node.setAttribute(k, v);
+  }
+  return node;
+}
+
+function debounce(fn, ms) {
+  let t;
+  return (...args) => {
+    clearTimeout(t);
+    t = setTimeout(() => fn(...args), ms);
+  };
+}
+
+/** Read a File as a downscaled JPEG/PNG data URL (bounds memory + storage). */
+function fileToDataURL(file, maxDim = 1400) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.round(img.naturalWidth * scale);
+      const h = Math.round(img.naturalHeight * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      // keep alpha if the source may have it
+      const isPng = /png|webp|svg/.test(file.type);
+      resolve(canvas.toDataURL(isPng ? 'image/png' : 'image/jpeg', 0.88));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+async function downloadText(filename, text, mime = 'image/svg+xml') {
+  // Claude Artifact runtime: direct browser downloads are sandboxed away —
+  // use the viewer-consented save dialog, falling back to copy-the-text.
+  if (typeof window !== 'undefined' && window.claude?.use) {
+    let downloads = null;
+    try { downloads = await window.claude.use('downloads'); } catch { /* absent */ }
+    if (downloads) {
+      try {
+        await downloads.save({ filename, data: text });
+        return;
+      } catch (err) {
+        if (err?.code === 'declined') return; // viewer said no — respect it
+        if (err?.code === 'extension_not_enabled' || err?.code === 'rejected_extension') {
+          try {
+            await downloads.save({ filename: `${filename}.txt`, data: text });
+            return;
+          } catch (err2) {
+            if (err2?.code === 'declined') return;
+          }
+        }
+      }
+    }
+    showCopyFallback(filename, text);
+    return;
+  }
+
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** Last-resort export path: show the file contents to copy/paste. */
+function showCopyFallback(filename, text) {
+  const ta = el('textarea', { rows: 8, readonly: '', style: 'font-family:monospace;font-size:11px' });
+  ta.value = text;
+  const copyBtn = el('button', { class: 'btn small' }, 'Copy to clipboard');
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied ✓';
+    } catch {
+      ta.select();
+      document.execCommand('copy');
+      copyBtn.textContent = 'Copied ✓';
+    }
+  });
+  showModal(filename, el('div', {},
+    el('div', { class: 'muted', style: 'margin-bottom:8px' },
+      `Saving isn’t available here — copy the file contents and paste into a file named “${filename}”.`),
+    ta,
+    el('div', { class: 'btn-row' }, copyBtn)));
+}
+
+/** In-app replacements for confirm()/alert() — sandboxed iframes (like the
+ *  Claude Artifact viewer) silently no-op the native dialogs. */
+function appConfirm(message, confirmLabel = 'Delete') {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; modal.close(); resolve(v); } };
+    const modal = showModal('Are you sure?', el('div', {},
+      el('div', { class: 'muted', style: 'margin-bottom:12px' }, message),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn danger', onclick: () => finish(true) }, confirmLabel),
+        el('button', { class: 'btn secondary', onclick: () => finish(false) }, 'Cancel'))),
+      { onClose: () => { if (!done) { done = true; resolve(false); } } });
+  });
+}
+
+function appAlert(message) {
+  return new Promise((resolve) => {
+    const modal = showModal('Heads up', el('div', {},
+      el('div', { class: 'muted', style: 'margin-bottom:12px' }, message),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn', onclick: () => modal.close() }, 'OK'))),
+      { onClose: resolve });
+  });
+}
+
+/** Bottom-sheet modal. Returns { close }. */
+function showModal(title, contentNode, { onClose } = {}) {
+  const backdrop = el('div', { class: 'modal-backdrop' });
+  const modal = el('div', { class: 'modal' }, el('h2', {}, title), contentNode);
+  backdrop.append(modal);
+  const close = () => { backdrop.remove(); onClose?.(); };
+  backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+  document.body.append(backdrop);
+  return { close };
+}
+
+function fmtMm(mm) {
+  return mm >= 100 ? `${(mm / 10).toFixed(1)} cm` : `${Math.round(mm)} mm`;
+}
+
+function fmtArea(mm2) {
+  if (mm2 >= 1e6) return `${(mm2 / 1e6).toFixed(2)} m²`;
+  return `${(mm2 / 100).toFixed(0)} cm²`;
+}
+
+// ───────────────────────── js/db.js ─────────────────────────
+/**
+ * db.js — IndexedDB persistence.
+ *
+ * Two stores:
+ *   projects — one record per project (garment, artwork placements, design)
+ *   textiles — user-level donor textile library (§17: textiles belong to the
+ *              user, not a project, because one donor material can feed many
+ *              designs and its remaining area is shared)
+ */
+
+const DB_NAME = 'restitch';
+const DB_VERSION = 1;
+
+let dbPromise = null;
+
+// Sandboxed contexts (e.g. the Claude Artifact viewer, some private-browsing
+// modes) can refuse IndexedDB entirely. Fall back to an in-memory store so
+// the whole flow still works for the session.
+const memory = { projects: new Map(), textiles: new Map() };
+let useMemory = false;
+
+function memoryOp(store, fn) {
+  return Promise.resolve(fn(memory[store]));
+}
+
+function open() {
+  if (!dbPromise) {
+    dbPromise = new Promise((resolve, reject) => {
+      let req;
+      try {
+        req = indexedDB.open(DB_NAME, DB_VERSION); // can throw synchronously when blocked
+      } catch (err) {
+        reject(err);
+        return;
+      }
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('projects')) {
+          db.createObjectStore('projects', { keyPath: 'id' });
+        }
+        if (!db.objectStoreNames.contains('textiles')) {
+          db.createObjectStore('textiles', { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return dbPromise;
+}
+
+async function tx(store, mode, fn, memFn) {
+  if (useMemory) return memoryOp(store, memFn);
+  let database;
+  try {
+    database = await open();
+  } catch {
+    useMemory = true;
+    return memoryOp(store, memFn);
+  }
+  return new Promise((resolve, reject) => {
+    const t = database.transaction(store, mode);
+    const s = t.objectStore(store);
+    const out = fn(s);
+    t.oncomplete = () => resolve(out?.result ?? out);
+    t.onerror = () => reject(t.error);
+  });
+}
+
+const db = {
+  getAll: (store) => tx(store, 'readonly', (s) => s.getAll(), (m) => [...m.values()]),
+  get: (store, id) => tx(store, 'readonly', (s) => s.get(id), (m) => m.get(id)),
+  put: (store, value) => tx(store, 'readwrite', (s) => s.put(value), (m) => m.set(value.id, value)),
+  delete: (store, id) => tx(store, 'readwrite', (s) => s.delete(id), (m) => m.delete(id)),
+  /** True when running on the session-only fallback (no durable storage). */
+  isMemory: () => useMemory,
+};
+
+// ───────────────────────── js/services/geometry.js ─────────────────────────
+/**
+ * geometry.js — pure vector-path helpers.
+ *
+ * All piece geometry in ReStitch is authored in MILLIMETERS. Paths built here
+ * are the production representation (§19 of the product brief): what gets cut
+ * is derived from these numbers, never from a rendered preview.
+ */
+
+/** Round to 2 decimal places for compact, stable path strings. */
+function r2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+/** Build an SVG path string for an ellipse centred on (cx, cy). */
+function ellipsePath(cx, cy, rx, ry) {
+  const k = 0.5523; // cubic approximation constant
+  const x0 = cx - rx, x1 = cx + rx, y0 = cy - ry, y1 = cy + ry;
+  const dx = rx * k, dy = ry * k;
+  return [
+    `M ${r2(x0)} ${r2(cy)}`,
+    `C ${r2(x0)} ${r2(cy - dy)} ${r2(cx - dx)} ${r2(y0)} ${r2(cx)} ${r2(y0)}`,
+    `C ${r2(cx + dx)} ${r2(y0)} ${r2(x1)} ${r2(cy - dy)} ${r2(x1)} ${r2(cy)}`,
+    `C ${r2(x1)} ${r2(cy + dy)} ${r2(cx + dx)} ${r2(y1)} ${r2(cx)} ${r2(y1)}`,
+    `C ${r2(cx - dx)} ${r2(y1)} ${r2(x0)} ${r2(cy + dy)} ${r2(x0)} ${r2(cy)}`,
+    'Z',
+  ].join(' ');
+}
+
+/**
+ * Teardrop/petal shape pointing up: base at (0,0), tip at (0,-len).
+ * `width` is the widest point. Returns a closed cubic path.
+ */
+function petalPath(len, width) {
+  const w = width / 2;
+  const bulge = len * 0.42; // where the petal is widest, from the base
+  return [
+    'M 0 0',
+    `C ${r2(-w)} ${r2(-bulge * 0.4)} ${r2(-w)} ${r2(-len + bulge)} 0 ${r2(-len)}`,
+    `C ${r2(w)} ${r2(-len + bulge)} ${r2(w)} ${r2(-bulge * 0.4)} 0 0`,
+    'Z',
+  ].join(' ');
+}
+
+/** Leaf shape: pointed at both ends, along +x axis from (0,0) to (len,0). */
+function leafPath(len, width) {
+  const w = width / 2;
+  return [
+    'M 0 0',
+    `C ${r2(len * 0.3)} ${r2(-w)} ${r2(len * 0.7)} ${r2(-w)} ${r2(len)} 0`,
+    `C ${r2(len * 0.7)} ${r2(w)} ${r2(len * 0.3)} ${r2(w)} 0 0`,
+    'Z',
+  ].join(' ');
+}
+
+/** Classic heart centred on origin, fitting in size × size. */
+function heartPath(size) {
+  const s = size / 2;
+  return [
+    `M 0 ${r2(s)}`,
+    `C ${r2(-s * 1.1)} ${r2(s * 0.05)} ${r2(-s * 0.95)} ${r2(-s * 0.85)} 0 ${r2(-s * 0.35)}`,
+    `C ${r2(s * 0.95)} ${r2(-s * 0.85)} ${r2(s * 1.1)} ${r2(s * 0.05)} 0 ${r2(s)}`,
+    'Z',
+  ].join(' ');
+}
+
+/** N-pointed star centred on origin. */
+function starPath(points, outerR, innerR) {
+  const pts = [];
+  for (let i = 0; i < points * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const a = (Math.PI * i) / points - Math.PI / 2;
+    pts.push([r2(Math.cos(a) * r), r2(Math.sin(a) * r)]);
+  }
+  return polygonPath(pts);
+}
+
+/** Closed polygon path from [x, y] pairs. */
+function polygonPath(pts) {
+  if (!pts.length) return '';
+  const [first, ...rest] = pts;
+  return `M ${first[0]} ${first[1]} ` + rest.map((p) => `L ${p[0]} ${p[1]}`).join(' ') + ' Z';
+}
+
+/**
+ * Smooth closed path through polygon points using Catmull-Rom → cubic Bézier.
+ * Used to turn traced pixel contours into organic, sewable outlines.
+ */
+function smoothClosedPath(pts, tension = 1) {
+  const n = pts.length;
+  if (n < 3) return polygonPath(pts);
+  const parts = [`M ${r2(pts[0][0])} ${r2(pts[0][1])}`];
+  for (let i = 0; i < n; i++) {
+    const p0 = pts[(i - 1 + n) % n];
+    const p1 = pts[i];
+    const p2 = pts[(i + 1) % n];
+    const p3 = pts[(i + 2) % n];
+    const c1x = p1[0] + ((p2[0] - p0[0]) / 6) * tension;
+    const c1y = p1[1] + ((p2[1] - p0[1]) / 6) * tension;
+    const c2x = p2[0] - ((p3[0] - p1[0]) / 6) * tension;
+    const c2y = p2[1] - ((p3[1] - p1[1]) / 6) * tension;
+    parts.push(`C ${r2(c1x)} ${r2(c1y)} ${r2(c2x)} ${r2(c2y)} ${r2(p2[0])} ${r2(p2[1])}`);
+  }
+  parts.push('Z');
+  return parts.join(' ');
+}
+
+/** Rounded rectangle centred on origin. */
+function roundedRectPath(w, h, r) {
+  const hw = w / 2, hh = h / 2;
+  r = Math.min(r, hw, hh);
+  return [
+    `M ${r2(-hw + r)} ${r2(-hh)}`,
+    `L ${r2(hw - r)} ${r2(-hh)} Q ${r2(hw)} ${r2(-hh)} ${r2(hw)} ${r2(-hh + r)}`,
+    `L ${r2(hw)} ${r2(hh - r)} Q ${r2(hw)} ${r2(hh)} ${r2(hw - r)} ${r2(hh)}`,
+    `L ${r2(-hw + r)} ${r2(hh)} Q ${r2(-hw)} ${r2(hh)} ${r2(-hw)} ${r2(hh - r)}`,
+    `L ${r2(-hw)} ${r2(-hh + r)} Q ${r2(-hw)} ${r2(-hh)} ${r2(-hw + r)} ${r2(-hh)}`,
+    'Z',
+  ].join(' ');
+}
+
+/**
+ * Ramer–Douglas–Peucker polyline simplification.
+ * Reduces traced contours to a manufacturable number of points.
+ */
+function simplifyPolyline(pts, epsilon) {
+  if (pts.length < 3) return pts.slice();
+  const keep = new Array(pts.length).fill(false);
+  keep[0] = keep[pts.length - 1] = true;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [a, b] = stack.pop();
+    let maxD = 0, idx = -1;
+    for (let i = a + 1; i < b; i++) {
+      const d = pointSegDistance(pts[i], pts[a], pts[b]);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > epsilon && idx > 0) {
+      keep[idx] = true;
+      stack.push([a, idx], [idx, b]);
+    }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+
+function pointSegDistance(p, a, b) {
+  const dx = b[0] - a[0], dy = b[1] - a[1];
+  const len2 = dx * dx + dy * dy;
+  if (len2 === 0) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+  let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+/** Signed area of a polygon (shoelace). Positive = counter-clockwise. */
+function polygonArea(pts) {
+  let sum = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    const [x2, y2] = pts[(i + 1) % pts.length];
+    sum += x1 * y2 - x2 * y1;
+  }
+  return sum / 2;
+}
+
+/**
+ * Approximate the bounding box of an SVG path string by sampling its
+ * commands. Handles M/L/C/Q/Z (absolute) — the subset this app generates.
+ * Curve control points are included, giving a slightly conservative box,
+ * which is the safe direction for cutting layouts.
+ */
+function pathBBox(d) {
+  const nums = [];
+  const re = /[MLCQZ]|-?\d*\.?\d+(?:e-?\d+)?/gi;
+  let m;
+  const coords = [];
+  while ((m = re.exec(d))) {
+    const tok = m[0];
+    if (/[MLCQZ]/i.test(tok)) continue;
+    nums.push(parseFloat(tok));
+  }
+  for (let i = 0; i + 1 < nums.length; i += 2) coords.push([nums[i], nums[i + 1]]);
+  if (!coords.length) return { x: 0, y: 0, w: 0, h: 0 };
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of coords) {
+    if (x < minX) minX = x;
+    if (x > maxX) maxX = x;
+    if (y < minY) minY = y;
+    if (y > maxY) maxY = y;
+  }
+  return { x: r2(minX), y: r2(minY), w: r2(maxX - minX), h: r2(maxY - minY) };
+}
+
+/** Union of bounding boxes. */
+function unionBBox(boxes) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const b of boxes) {
+    minX = Math.min(minX, b.x);
+    minY = Math.min(minY, b.y);
+    maxX = Math.max(maxX, b.x + b.w);
+    maxY = Math.max(maxY, b.y + b.h);
+  }
+  if (minX === Infinity) return { x: 0, y: 0, w: 0, h: 0 };
+  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+}
+
+// ───────────────────────── js/services/shapes.js ─────────────────────────
+/**
+ * shapes.js — parametric artwork generator ("AI generate" local provider).
+ *
+ * Generates artwork already decomposed into individually cuttable fabric
+ * components (§4 of the product brief): a wildflower is returned as separate
+ * petals, a center, leaves and a stem — each with its own path — rather than
+ * as one flat picture. Every component's geometry is expressed in mm.
+ *
+ * A generated artwork is:
+ *   { name, components: [{ name, role, pathMm, bboxMm, offsetMm: {x, y}, quantity }] }
+ *
+ * `offsetMm` places the component inside the artwork's own coordinate space so
+ * the designer can drop the whole motif and keep its internal arrangement.
+ * `role` is a hint for material assignment (petal / center / leaf / stem / body).
+ */
+
+
+/** Deterministic PRNG so "regenerate" can vary while staying reproducible. */
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function comp(name, role, pathMm, offsetMm = { x: 0, y: 0 }, quantity = 1) {
+  return { name, role, pathMm, bboxMm: pathBBox(pathMm), offsetMm, quantity };
+}
+
+/**
+ * A wildflower with `petals` petals arranged radially, a round center,
+ * plus optional leaves and stem. sizeMm is the overall flower diameter.
+ */
+function wildflower({ petals = 5, sizeMm = 90, leaves = 2, stem = false, seed = 1 } = {}) {
+  const rnd = mulberry32(seed);
+  const petalLen = sizeMm / 2;
+  const petalW = petalLen * (0.52 + rnd() * 0.16);
+  const centerR = sizeMm * (0.13 + rnd() * 0.04);
+  const components = [];
+
+  // One petal shape, cut `petals` times — appliqué petals are placed
+  // radially during assembly. Store each placement so the designer shows
+  // the full flower, but production groups identical petals.
+  for (let i = 0; i < petals; i++) {
+    const angle = (360 / petals) * i + (rnd() - 0.5) * 6;
+    components.push({
+      ...comp(`Petal ${i + 1}`, 'petal', petalPath(petalLen, petalW)),
+      rotation: r2(angle),
+      offsetMm: { x: 0, y: 0 }, // petal base sits at flower center; rotation fans them out
+    });
+  }
+  components.push(comp('Center', 'center', ellipsePath(0, 0, centerR, centerR)));
+
+  for (let i = 0; i < leaves; i++) {
+    const len = sizeMm * (0.42 + rnd() * 0.12);
+    const side = i % 2 === 0 ? 1 : -1;
+    components.push({
+      ...comp(`Leaf ${i + 1}`, 'leaf', leafPath(len, len * 0.42)),
+      rotation: r2(side * (35 + rnd() * 20) + 90),
+      offsetMm: { x: side * sizeMm * 0.18, y: sizeMm * 0.52 + i * 4 },
+    });
+  }
+
+  if (stem) {
+    const stemLen = sizeMm * 0.9;
+    components.push(
+      comp('Stem', 'stem', roundedRectPath(sizeMm * 0.055, stemLen, sizeMm * 0.027),
+        { x: 0, y: sizeMm / 2 + stemLen / 2 - centerR })
+    );
+  }
+
+  return { name: `Wildflower (${petals} petals)`, components };
+}
+
+function heart({ sizeMm = 80 } = {}) {
+  return { name: 'Heart', components: [comp('Heart', 'body', heartPath(sizeMm))] };
+}
+
+function star({ points = 5, sizeMm = 80 } = {}) {
+  return {
+    name: `Star (${points} points)`,
+    components: [comp('Star', 'body', starPath(points, sizeMm / 2, sizeMm / 4.6))],
+  };
+}
+
+function circle({ sizeMm = 70 } = {}) {
+  return { name: 'Circle patch', components: [comp('Circle', 'body', ellipsePath(0, 0, sizeMm / 2, sizeMm / 2))] };
+}
+
+function leafSprig({ sizeMm = 100, count = 3, seed = 1 } = {}) {
+  const rnd = mulberry32(seed);
+  const components = [];
+  for (let i = 0; i < count; i++) {
+    const len = sizeMm * (0.35 + rnd() * 0.25);
+    const side = i % 2 === 0 ? 1 : -1;
+    components.push({
+      ...comp(`Leaf ${i + 1}`, 'leaf', leafPath(len, len * 0.4)),
+      rotation: r2(side * (20 + rnd() * 35)),
+      offsetMm: { x: (i - (count - 1) / 2) * sizeMm * 0.3, y: (rnd() - 0.5) * sizeMm * 0.2 },
+    });
+  }
+  return { name: `Leaf sprig (${count})`, components };
+}
+
+function patchRect({ wMm = 90, hMm = 70, cornerMm = 10 } = {}) {
+  return { name: 'Patch', components: [comp('Patch', 'body', roundedRectPath(wMm, hMm, cornerMm))] };
+}
+
+/**
+ * Tiny prompt parser: turns a free-text request like
+ * "three small five-petal wildflowers with a stem" into generator calls.
+ * This is the editable-AI seam (§18): a hosted model can replace parseprompt
+ * while the component contract stays identical.
+ */
+const WORD_NUMBERS = {
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+};
+
+function generateFromPrompt(prompt, seed = Date.now() % 100000) {
+  const p = (prompt || '').toLowerCase();
+  const nums = [];
+  for (const m of p.matchAll(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten)\b/g)) {
+    nums.push(WORD_NUMBERS[m[1]] ?? parseInt(m[1], 10));
+  }
+  const sizeMm = /\b(tiny|small)\b/.test(p) ? 55 : /\b(big|large|huge)\b/.test(p) ? 130 : 90;
+
+  if (/flower|floral|daisy|bloom|petal/.test(p)) {
+    const petals = nums.find((n) => n >= 3 && n <= 12) ?? 5;
+    return wildflower({
+      petals, sizeMm, seed,
+      leaves: /leaf|leaves/.test(p) ? 2 : /\bno leaves\b/.test(p) ? 0 : 2,
+      stem: /stem/.test(p),
+    });
+  }
+  if (/heart|love/.test(p)) return heart({ sizeMm });
+  if (/star/.test(p)) return star({ points: nums.find((n) => n >= 4 && n <= 9) ?? 5, sizeMm });
+  if (/leaf|leaves|sprig|branch/.test(p)) return leafSprig({ sizeMm, count: nums.find((n) => n >= 2 && n <= 7) ?? 3, seed });
+  if (/circle|dot|round/.test(p)) return circle({ sizeMm });
+  if (/patch|rect|square|label/.test(p)) return patchRect({ wMm: sizeMm, hMm: sizeMm * 0.78 });
+  // Default: a friendly manufacturable flower.
+  return wildflower({ petals: 5, sizeMm, seed });
+}
+
+/** Built-in template library (§3 "Template Library"). */
+const TEMPLATES = [
+  { id: 'wildflower5', name: 'Wildflower ×5', build: (seed) => wildflower({ petals: 5, seed }) },
+  { id: 'wildflower8', name: 'Daisy ×8', build: (seed) => wildflower({ petals: 8, sizeMm: 80, leaves: 0, seed }) },
+  { id: 'flower-stem', name: 'Flower + stem', build: (seed) => wildflower({ petals: 5, stem: true, seed }) },
+  { id: 'heart', name: 'Heart', build: () => heart({}) },
+  { id: 'star5', name: 'Star', build: () => star({}) },
+  { id: 'sprig', name: 'Leaf sprig', build: (seed) => leafSprig({ seed }) },
+  { id: 'circle', name: 'Circle patch', build: () => circle({}) },
+  { id: 'patch', name: 'Rounded patch', build: () => patchRect({}) },
+];
+
+// ───────────────────────── js/services/nest.js ─────────────────────────
+/**
+ * nest.js — material nesting / waste estimation (§9 of the product brief).
+ *
+ * MVP algorithm: first-fit-decreasing shelf packing of piece bounding boxes,
+ * trying both 0° and 90° orientations per piece. Reclaimed textiles are
+ * finite, so even a simple packer plus a utilization number is genuinely
+ * useful; the module boundary lets a true irregular-shape nester replace
+ * this without touching callers.
+ *
+ * Input pieces: { id, label, wMm, hMm, areaMm2? }
+ * Returns { placements: [{ id, label, xMm, yMm, wMm, hMm, rotated }],
+ *           sheetWMm, usedHMm, utilization }
+ */
+
+const GAP_MM = 4; // cutting clearance between pieces
+
+function nestPieces(pieces, sheetWMm = 450) {
+  const sorted = pieces
+    .map((p) => ({ ...p }))
+    .sort((a, b) => Math.max(b.wMm, b.hMm) - Math.max(a.wMm, a.hMm));
+
+  const shelves = []; // { yMm, hMm, xCursor }
+  const placements = [];
+
+  for (const p of sorted) {
+    let w = p.wMm, h = p.hMm, rotated = false;
+    // Prefer the orientation that lies flatter (wider than tall): it makes
+    // denser shelves. Fall back to the other if it doesn't fit the sheet.
+    if (h > w && h <= sheetWMm) { [w, h] = [h, w]; rotated = true; }
+    if (w > sheetWMm && h <= sheetWMm) { [w, h] = [h, w]; rotated = !rotated; }
+    w = Math.min(w, sheetWMm); // oversize pieces still get a row (flagged by width)
+
+    let placed = false;
+    for (const shelf of shelves) {
+      if (shelf.xCursor + w <= sheetWMm && h <= shelf.hMm) {
+        placements.push({ id: p.id, label: p.label, xMm: shelf.xCursor, yMm: shelf.yMm, wMm: w, hMm: h, rotated });
+        shelf.xCursor += w + GAP_MM;
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      const yMm = shelves.length
+        ? shelves[shelves.length - 1].yMm + shelves[shelves.length - 1].hMm + GAP_MM
+        : 0;
+      shelves.push({ yMm, hMm: h, xCursor: w + GAP_MM });
+      placements.push({ id: p.id, label: p.label, xMm: 0, yMm, wMm: w, hMm: h, rotated });
+    }
+  }
+
+  const usedHMm = shelves.length
+    ? shelves[shelves.length - 1].yMm + shelves[shelves.length - 1].hMm
+    : 0;
+
+  // Utilization estimate. When a real piece area is unknown, assume the
+  // outline fills ~78% of its bounding box (typical for organic appliqué).
+  const usedArea = pieces.reduce(
+    (sum, p) => sum + (p.areaMm2 ?? p.wMm * p.hMm * 0.78), 0);
+  const sheetArea = sheetWMm * usedHMm;
+  const utilization = sheetArea > 0 ? Math.min(1, usedArea / sheetArea) : 0;
+
+  return { placements, sheetWMm, usedHMm, utilization };
+}
+
+// ───────────────────────── js/services/svgexport.js ─────────────────────────
+/**
+ * svgexport.js — production cutting-file generation (§7–8 of the brief).
+ *
+ * Emits real-world-unit SVG (width/height in mm, viewBox 1 unit = 1 mm),
+ * which Cricut Design Space, Silhouette Studio, Inkscape and laser tools all
+ * understand. Cut lines live in a `cut` group; human-readable labels live in
+ * a separate `labels` group so they can be hidden/removed before cutting.
+ *
+ * This module is deliberately machine-agnostic: Cricut is one output target,
+ * not an architectural dependency.
+ */
+
+
+const XMLNS = 'http://www.w3.org/2000/svg';
+
+function esc(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/**
+ * Production piece: { label, pathMm, scale, mirror, seamAllowanceMm }
+ * Placement (from nest.js): { xMm, yMm, wMm, hMm, rotated }
+ *
+ * Builds one cutting sheet for one material.
+ * `materialName` appears in the sheet header label.
+ */
+function buildCuttingSheetSVG({ pieces, placements, sheetWMm, usedHMm, materialName = 'Material' }) {
+  const byId = new Map(pieces.map((p) => [p.id, p]));
+  const cut = [];
+  const labels = [];
+
+  for (const pl of placements) {
+    const p = byId.get(pl.id);
+    if (!p) continue;
+    const bb = pathBBox(p.pathMm);
+    const s = p.scale ?? 1;
+    // Base orientation transform: move the (scaled, possibly mirrored) piece
+    // so its bbox top-left sits at the placement slot, honoring 90° rotation.
+    const t = [];
+    t.push(`translate(${r2(pl.xMm)} ${r2(pl.yMm)})`);
+    if (pl.rotated) {
+      // rotate 90° clockwise about origin, then shift into the slot
+      t.push(`translate(${r2(pl.wMm)} 0) rotate(90)`);
+    }
+    t.push(`scale(${r2(p.mirror ? -s : s)} ${r2(s)})`);
+    // after mirroring, bbox flips horizontally
+    const bx = p.mirror ? -(bb.x + bb.w) : bb.x;
+    t.push(`translate(${r2(-bx)} ${r2(-bb.y)})`);
+
+    cut.push(`    <path d="${esc(p.pathMm)}" transform="${t.join(' ')}"/>`);
+    labels.push(
+      `    <text x="${r2(pl.xMm + pl.wMm / 2)}" y="${r2(pl.yMm + pl.hMm / 2)}" ` +
+      `text-anchor="middle" dominant-baseline="middle" font-size="6">${esc(p.label)}</text>`
+    );
+    if (p.seamAllowanceMm) {
+      // Approximate seam allowance: a second, uniformly outset cut line.
+      // (True polygon offsetting is a post-MVP upgrade; the approximation is
+      // labeled as such in the sheet.)
+      const grow = 1 + (2 * p.seamAllowanceMm) / Math.max(bb.w * s, 1);
+      const cx = bb.x + bb.w / 2, cy = bb.y + bb.h / 2;
+      const t2 = t.slice(0, t.length - 1);
+      t2.push(`translate(${r2(-bx)} ${r2(-bb.y)})`);
+      t2.push(`translate(${r2(cx)} ${r2(cy)}) scale(${r2(grow)}) translate(${r2(-cx)} ${r2(-cy)})`);
+      cut.push(`    <path d="${esc(p.pathMm)}" transform="${t2.join(' ')}" stroke-dasharray="2 2"/>`);
+    }
+  }
+
+  const w = r2(sheetWMm), h = r2(Math.max(usedHMm, 10));
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="${XMLNS}" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">
+  <title>${esc(materialName)} — cutting sheet</title>
+  <desc>Generated by ReStitch. 1 unit = 1 mm. Cut the solid paths in the "cut" group; the "labels" group is informational only.</desc>
+  <g id="cut" fill="none" stroke="#000" stroke-width="0.35">
+${cut.join('\n')}
+  </g>
+  <g id="labels" fill="#888" font-family="sans-serif">
+${labels.join('\n')}
+  </g>
+</svg>
+`;
+}
+
+/**
+ * Single-piece SVG (one component, true size) — handy for hand-cut
+ * printable templates or importing individual shapes into cutter software.
+ */
+function buildPieceSVG({ label, pathMm, scale = 1, mirror = false }) {
+  const bb = pathBBox(pathMm);
+  const w = r2(bb.w * scale), h = r2(bb.h * scale);
+  const bx = mirror ? -(bb.x + bb.w) : bb.x;
+  const transform =
+    `scale(${r2(mirror ? -scale : scale)} ${r2(scale)}) translate(${r2(-bx)} ${r2(-bb.y)})`;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="${XMLNS}" width="${w}mm" height="${h}mm" viewBox="0 0 ${w} ${h}">
+  <title>${esc(label)}</title>
+  <g fill="none" stroke="#000" stroke-width="0.35">
+    <path d="${esc(pathMm)}" transform="${transform}"/>
+  </g>
+</svg>
+`;
+}
+
+// ───────────────────────── js/services/imaging.js ─────────────────────────
+/**
+ * imaging.js — on-device computer-vision heuristics.
+ *
+ * These are the local implementations behind the AI adapter (see ai.js).
+ * Each one follows the product's §18 rule: the algorithm proposes, the user
+ * can adjust (threshold sliders, region crops), and the corrected result is
+ * what gets stored.
+ *
+ *  - removeBackground: garment/textile isolation from a photo
+ *  - extractSwatch:    build a tileable material texture from a photo region
+ *  - traceContour:     photo/PNG of artwork → simplified closed vector path
+ */
+
+
+function ctx2d(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c.getContext('2d', { willReadFrequently: true });
+}
+
+/**
+ * Heuristic background removal.
+ * Assumes the item was photographed on a roughly uniform background (floor,
+ * table, wall — the normal way people shoot garments flat). Strategy:
+ *   1. Estimate background color from the image border.
+ *   2. Alpha-mask pixels near that color (with feathering).
+ *   3. Keep the largest connected foreground component; drop speckle.
+ * Returns { dataUrl (PNG with alpha), bbox: {x,y,w,h} in px, coverage }.
+ * `tolerance` 0..100 is user-adjustable (§18: every AI decision editable).
+ */
+async function removeBackground(img, tolerance = 42) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const ctx = ctx2d(w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  const data = ctx.getImageData(0, 0, w, h);
+  const px = data.data;
+
+  // 1. Median border color.
+  const rs = [], gs = [], bs = [];
+  const step = Math.max(1, Math.floor((w + h) / 400));
+  const sample = (x, y) => {
+    const i = (y * w + x) * 4;
+    rs.push(px[i]); gs.push(px[i + 1]); bs.push(px[i + 2]);
+  };
+  for (let x = 0; x < w; x += step) { sample(x, 0); sample(x, h - 1); }
+  for (let y = 0; y < h; y += step) { sample(0, y); sample(w - 1, y); }
+  const med = (arr) => arr.sort((a, b) => a - b)[Math.floor(arr.length / 2)];
+  const bg = [med(rs), med(gs), med(bs)];
+
+  // 2. Distance-based mask with a feather band.
+  const thr = 30 + tolerance * 1.6; // tolerance 0..100 → distance 30..190
+  const feather = 26;
+  const mask = new Uint8Array(w * h); // 1 = foreground
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const d = Math.hypot(px[i] - bg[0], px[i + 1] - bg[1], px[i + 2] - bg[2]);
+    mask[j] = d > thr ? 1 : 0;
+    const a = d <= thr - feather ? 0 : d >= thr + feather ? 255
+      : Math.round(((d - (thr - feather)) / (2 * feather)) * 255);
+    px[i + 3] = a;
+  }
+
+  // 3. Largest connected component (4-neighbour flood fill, iterative).
+  const labels = new Int32Array(w * h).fill(-1);
+  let bestLabel = -1, bestCount = 0, nextLabel = 0;
+  const stack = new Int32Array(w * h);
+  for (let start = 0; start < mask.length; start++) {
+    if (mask[start] !== 1 || labels[start] !== -1) continue;
+    let sp = 0, count = 0;
+    stack[sp++] = start;
+    labels[start] = nextLabel;
+    while (sp > 0) {
+      const idx = stack[--sp];
+      count++;
+      const x = idx % w, y = (idx / w) | 0;
+      if (x > 0 && mask[idx - 1] === 1 && labels[idx - 1] === -1) { labels[idx - 1] = nextLabel; stack[sp++] = idx - 1; }
+      if (x < w - 1 && mask[idx + 1] === 1 && labels[idx + 1] === -1) { labels[idx + 1] = nextLabel; stack[sp++] = idx + 1; }
+      if (y > 0 && mask[idx - w] === 1 && labels[idx - w] === -1) { labels[idx - w] = nextLabel; stack[sp++] = idx - w; }
+      if (y < h - 1 && mask[idx + w] === 1 && labels[idx + w] === -1) { labels[idx + w] = nextLabel; stack[sp++] = idx + w; }
+    }
+    if (count > bestCount) { bestCount = count; bestLabel = nextLabel; }
+    nextLabel++;
+  }
+
+  let minX = w, minY = h, maxX = 0, maxY = 0, kept = 0;
+  for (let j = 0; j < mask.length; j++) {
+    if (labels[j] !== bestLabel) {
+      px[j * 4 + 3] = 0;
+    } else {
+      kept++;
+      const x = j % w, y = (j / w) | 0;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    }
+  }
+  if (kept === 0) { minX = 0; minY = 0; maxX = w - 1; maxY = h - 1; }
+
+  ctx.putImageData(data, 0, 0);
+  return {
+    dataUrl: ctx.canvas.toDataURL('image/png'),
+    bbox: { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 },
+    coverage: kept / (w * h),
+  };
+}
+
+/**
+ * Build a tileable swatch from the central region of a textile photo.
+ * Center crop avoids edges/background; mirror-tiling hides seams so the
+ * texture can repeat across large appliqué pieces.
+ */
+function extractSwatch(img, tile = 256) {
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  const crop = Math.floor(Math.min(w, h) * 0.6);
+  const sx = Math.floor((w - crop) / 2), sy = Math.floor((h - crop) / 2);
+
+  const ctx = ctx2d(tile * 2, tile * 2);
+  // 2×2 mirrored tiling → seamless repeat
+  ctx.save(); ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
+  ctx.save(); ctx.translate(tile * 2, 0); ctx.scale(-1, 1);
+  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
+  ctx.save(); ctx.translate(0, tile * 2); ctx.scale(1, -1);
+  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
+  ctx.save(); ctx.translate(tile * 2, tile * 2); ctx.scale(-1, -1);
+  ctx.drawImage(img, sx, sy, crop, crop, 0, 0, tile, tile); ctx.restore();
+
+  return ctx.canvas.toDataURL('image/jpeg', 0.85);
+}
+
+/**
+ * Trace artwork (uploaded PNG/JPG or a photographed drawing) into ONE
+ * simplified closed vector path, scaled to `targetWMm` wide.
+ *
+ * Uses transparency when present, else dark-on-light luminance; extracts the
+ * outer boundary of the largest blob via boundary-following (Moore
+ * neighbourhood), simplifies with RDP, then smooths into cubic curves.
+ *
+ * Returns { pathMm, bboxMm, points } or null if nothing traceable found.
+ */
+function traceContour(img, { targetWMm = 100, threshold = 128 } = {}) {
+  const maxDim = 320; // tracing resolution — plenty for sewable shapes
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const scale = Math.min(1, maxDim / Math.max(iw, ih));
+  const w = Math.max(2, Math.round(iw * scale));
+  const h = Math.max(2, Math.round(ih * scale));
+  const ctx = ctx2d(w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  const px = ctx.getImageData(0, 0, w, h).data;
+
+  // Decide mask mode: alpha if the image has real transparency.
+  let transparent = 0;
+  for (let i = 3; i < px.length; i += 4) if (px[i] < 200) transparent++;
+  const useAlpha = transparent > w * h * 0.05;
+
+  const solid = new Uint8Array((w + 2) * (h + 2)); // 1px zero border simplifies tracing
+  const W = w + 2;
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      let on;
+      if (useAlpha) {
+        on = px[i + 3] > 128;
+      } else {
+        const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+        on = lum < threshold; // dark ink on light paper
+      }
+      solid[(y + 1) * W + (x + 1)] = on ? 1 : 0;
+    }
+  }
+
+  // Largest component's starting pixel (scan + flood-count).
+  const seen = new Uint8Array(solid.length);
+  let bestStart = -1, bestCount = 0;
+  const stack = new Int32Array(solid.length);
+  for (let s = 0; s < solid.length; s++) {
+    if (!solid[s] || seen[s]) continue;
+    let sp = 0, count = 0;
+    stack[sp++] = s; seen[s] = 1;
+    while (sp > 0) {
+      const idx = stack[--sp];
+      count++;
+      for (const d of [-1, 1, -W, W]) {
+        const n = idx + d;
+        if (n >= 0 && n < solid.length && solid[n] && !seen[n]) { seen[n] = 1; stack[sp++] = n; }
+      }
+    }
+    if (count > bestCount) { bestCount = count; bestStart = s; }
+  }
+  if (bestStart < 0 || bestCount < 16) return null;
+
+  // Keep only the best component for tracing.
+  const keep = new Uint8Array(solid.length);
+  {
+    let sp = 0;
+    stack[sp++] = bestStart; keep[bestStart] = 1;
+    while (sp > 0) {
+      const idx = stack[--sp];
+      for (const d of [-1, 1, -W, W]) {
+        const n = idx + d;
+        if (n >= 0 && n < solid.length && solid[n] && !keep[n]) { keep[n] = 1; stack[sp++] = n; }
+      }
+    }
+  }
+
+  // Moore-neighbour boundary following from the top-most left-most pixel.
+  let startIdx = -1;
+  for (let i = 0; i < keep.length; i++) if (keep[i]) { startIdx = i; break; }
+  const nbr = [1, 1 + W, W, W - 1, -1, -1 - W, -W, -W + 1]; // E SE S SW W NW N NE
+  const contour = [];
+  let cur = startIdx, backtrack = 4; // came from the west
+  const maxSteps = keep.length * 4;
+  for (let step = 0; step < maxSteps; step++) {
+    contour.push([cur % W, (cur / W) | 0]);
+    let found = -1;
+    for (let k = 0; k < 8; k++) {
+      const dir = (backtrack + 1 + k) % 8;
+      const n = cur + nbr[dir];
+      if (n >= 0 && n < keep.length && keep[n]) { found = dir; break; }
+    }
+    if (found < 0) break; // isolated pixel
+    cur += nbr[found];
+    backtrack = (found + 4) % 8;
+    if (cur === startIdx && contour.length > 2) break;
+  }
+  if (contour.length < 8) return null;
+
+  // Simplify + smooth. Epsilon scales with size so detail stays proportional.
+  const eps = Math.max(1.2, Math.max(w, h) / 160);
+  let pts = simplifyPolyline(contour, eps);
+  if (pts.length > 2 &&
+      pts[0][0] === pts[pts.length - 1][0] && pts[0][1] === pts[pts.length - 1][1]) {
+    pts = pts.slice(0, -1);
+  }
+  if (pts.length < 3) return null;
+
+  // Scale to mm, centred on origin.
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of pts) {
+    minX = Math.min(minX, x); maxX = Math.max(maxX, x);
+    minY = Math.min(minY, y); maxY = Math.max(maxY, y);
+  }
+  const pxW = Math.max(1, maxX - minX);
+  const mmPerPx = targetWMm / pxW;
+  const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+  const mmPts = pts.map(([x, y]) => [(x - cx) * mmPerPx, (y - cy) * mmPerPx]);
+
+  const pathMm = smoothClosedPath(mmPts, 0.9);
+  return {
+    pathMm,
+    bboxMm: pathBBox(pathMm),
+    areaMm2: Math.abs(polygonArea(mmPts)),
+  };
+}
+
+// ───────────────────────── js/services/ai.js ─────────────────────────
+/**
+ * ai.js — the AI adapter seam.
+ *
+ * Product rule (§18): AI assists, the user stays in control, and every AI
+ * output is editable structured data — never an opaque final answer.
+ *
+ * This module is the single place where "AI" is invoked. The MVP ships with
+ * on-device heuristic providers (imaging.js, shapes.js) so the whole flow
+ * works offline with zero keys. Swapping in hosted models (e.g. a
+ * segmentation model for garments, a diffusion model for photoreal mockups,
+ * Claude for artwork decomposition) means implementing this same interface
+ * in a `remoteProvider` and flipping `provider` — no screen code changes.
+ *
+ * Contract (all methods return editable structured data, in mm/px):
+ *   segmentGarment(img, opts)  → { dataUrl, bbox, coverage }
+ *   segmentTextile(img, opts)  → { dataUrl, bbox, coverage }
+ *   makeSwatch(img)            → dataUrl (tileable texture)
+ *   traceArtwork(img, opts)    → { pathMm, bboxMm, areaMm2 } | null
+ *   generateArtwork(prompt)    → { name, components: [...] }   (see shapes.js)
+ *   renderMockup(designCtx)    → dataUrl  (visualization ONLY — §19: it must
+ *                                never alter production geometry)
+ */
+
+
+
+const localProvider = {
+  name: 'on-device heuristics',
+
+  segmentGarment: (img, { tolerance } = {}) => removeBackground(img, tolerance ?? 42),
+  segmentTextile: (img, { tolerance } = {}) => removeBackground(img, tolerance ?? 42),
+  makeSwatch: (img) => extractSwatch(img),
+  traceArtwork: (img, opts) => traceContour(img, opts),
+  generateArtwork: (prompt, seed) => generateFromPrompt(prompt, seed),
+
+  // The local "mockup" is a composited render done by the preview screen
+  // itself (texture fill + garment shading + stitch marks). A hosted
+  // provider would return an image-model rendering here instead.
+  renderMockup: null,
+};
+
+const ai = localProvider;
+
+// ───────────────────────── js/state.js ─────────────────────────
+/**
+ * state.js — app state, data model and autosave.
+ *
+ * The stored project object IS the production source of truth (§19):
+ * `pieces[].pathMm` + placement numbers determine what gets cut. Preview
+ * imagery is cached separately and is never read back into geometry.
+ */
+
+
+
+/** Default physical widths (cm) per garment type, used to calibrate px→mm.
+ *  The user can always override with a measured value. */
+const GARMENT_TYPES = {
+  't-shirt': { label: 'T-shirt', widthCm: 50 },
+  sweatshirt: { label: 'Sweatshirt', widthCm: 56 },
+  hoodie: { label: 'Hoodie', widthCm: 57 },
+  sweater: { label: 'Sweater', widthCm: 54 },
+  jacket: { label: 'Jacket', widthCm: 58 },
+  jeans: { label: 'Jeans / pants', widthCm: 40 },
+  skirt: { label: 'Skirt', widthCm: 45 },
+  bag: { label: 'Bag', widthCm: 38 },
+  hat: { label: 'Hat', widthCm: 27 },
+  other: { label: 'Other', widthCm: 50 },
+};
+
+function newProject(name) {
+  return {
+    id: uid('proj'),
+    name: name || 'Untitled design',
+    status: 'draft',
+    createdAt: Date.now(),
+    updatedAt: Date.now(),
+    garment: null,      // see newGarment()
+    artworks: [],       // generated/imported artwork definitions (reusable within project)
+    pieces: [],         // placed DesignPieces — the production representation
+    previewImage: null, // cached mockup render (visualization only)
+  };
+}
+
+function newGarment({ image, maskImage, bbox, type = 't-shirt', widthCm }) {
+  return {
+    id: uid('garm'),
+    image,            // original photo (kept — designs render on the real item)
+    maskImage,        // background-removed PNG
+    bbox,             // garment bounds in image px
+    type,
+    widthCm: widthCm ?? GARMENT_TYPES[type].widthCm,
+    acquisitionCost: null,
+  };
+}
+
+function newTextile({ image, swatch, name, areaM2 = 0.5, cost = null }) {
+  return {
+    id: uid('tex'),
+    name: name || 'Reclaimed textile',
+    image,           // original photo
+    swatch,          // tileable texture data URL
+    estimatedAreaM2: areaM2,
+    remainingAreaM2: areaM2,
+    acquisitionCost: cost,
+    createdAt: Date.now(),
+  };
+}
+
+/**
+ * A placed, cuttable piece. Geometry (pathMm) is authored in millimeters;
+ * placement maps it onto the garment photo:
+ *   x, y      — position of the piece's local origin, in garment-image px
+ *   rotation  — degrees
+ *   scale     — unitless multiplier on the mm geometry
+ *   mirror    — horizontal flip
+ * Physical size = bbox(pathMm) × scale. Rendered size additionally uses the
+ * project's px-per-mm calibration.
+ */
+function newPiece({ name, role, pathMm, bboxMm, group, textileId = null, x, y, rotation = 0, scale = 1 }) {
+  return {
+    id: uid('piece'),
+    name, role: role || 'body', group: group || null,
+    pathMm, bboxMm,
+    textileId,
+    x, y, rotation, scale,
+    mirror: false,
+    layer: 0,
+    quantity: 1,
+    seamAllowanceMm: 0,
+  };
+}
+
+/** px per mm on the garment photo: garment bbox width ↔ real garment width. */
+function pxPerMm(project) {
+  const g = project?.garment;
+  if (!g || !g.bbox?.w || !g.widthCm) return 1;
+  return g.bbox.w / (g.widthCm * 10);
+}
+
+// ---------------------------------------------------------------------------
+
+const state = {
+  project: null,   // currently open project
+  textiles: [],    // user textile library
+  selectedPieceId: null,
+};
+
+const saveIndicator = () => document.getElementById('save-indicator');
+
+const saveProject = debounce(async () => {
+  if (!state.project) return;
+  state.project.updatedAt = Date.now();
+  await db.put('projects', state.project);
+  const ind = saveIndicator();
+  if (ind) {
+    ind.textContent = 'Saved';
+    setTimeout(() => { if (ind.textContent === 'Saved') ind.textContent = ''; }, 1500);
+  }
+}, 500);
+
+async function saveTextile(textile) {
+  await db.put('textiles', textile);
+  const i = state.textiles.findIndex((t) => t.id === textile.id);
+  if (i >= 0) state.textiles[i] = textile; else state.textiles.push(textile);
+}
+
+async function loadTextiles() {
+  state.textiles = await db.getAll('textiles');
+  state.textiles.sort((a, b) => b.createdAt - a.createdAt);
+}
+
+async function loadProject(id) {
+  state.project = await db.get('projects', id);
+  state.selectedPieceId = null;
+  return state.project;
+}
+
+async function listProjects() {
+  const all = await db.getAll('projects');
+  return all.sort((a, b) => b.updatedAt - a.updatedAt);
+}
+
+async function deleteProject(id) {
+  await db.delete('projects', id);
+  if (state.project?.id === id) state.project = null;
+}
+
+function getTextile(id) {
+  return state.textiles.find((t) => t.id === id) || null;
+}
+
+// ───────────────────────── js/screens/projects.js ─────────────────────────
+/** Projects screen — create and manage designs (MVP screen 1 & 8). */
+
+
+
+
+
+async function renderProjects(container) {
+  const projects = await listProjects();
+  const pad = el('div', { class: 'pad' });
+
+  pad.append(
+    el('button', {
+      class: 'btn block',
+      onclick: () => promptNewProject(),
+    }, '+ New design'),
+  );
+
+  if (db.isMemory()) {
+    pad.append(el('div', { class: 'small-note', style: 'margin-top:8px' },
+      'Demo mode: this environment blocks durable storage, so designs last for this visit only. Export your cutting files before closing.'));
+  }
+
+  if (!projects.length) {
+    pad.append(el('div', { class: 'empty-state' },
+      el('div', { class: 'big' }, '🧵'),
+      el('div', {}, 'Turn thrifted garments and reclaimed fabric into one-of-one apparel.'),
+      el('div', { class: 'small-note' },
+        'Photograph a garment, photograph a donor textile, design the appliqué, preview it, then export cutting patterns.'),
+    ));
+  }
+
+  for (const p of projects) {
+    const thumb = p.previewImage || p.garment?.maskImage || p.garment?.image;
+    const row = el('button', { class: 'project-row' },
+      thumb
+        ? el('img', { class: 'project-thumb', src: thumb, alt: '' })
+        : el('div', { class: 'project-thumb' }),
+      el('div', { class: 'grow' },
+        el('div', { class: 'name' }, p.name),
+        el('div', { class: 'muted' },
+          `${p.pieces.length} piece${p.pieces.length === 1 ? '' : 's'} · ` +
+          new Date(p.updatedAt).toLocaleDateString()),
+      ),
+      el('button', {
+        class: 'icon-btn', 'aria-label': 'Delete project',
+        onclick: async (e) => {
+          e.stopPropagation();
+          if (await appConfirm(`Delete “${p.name}”? This cannot be undone.`)) {
+            await deleteProject(p.id);
+            container.replaceChildren();
+            renderProjects(container);
+          }
+        },
+      }, '🗑'),
+    );
+    row.addEventListener('click', () => navigate(`#/p/${p.id}/garment`));
+    pad.append(row);
+  }
+
+  container.append(pad);
+}
+
+function promptNewProject() {
+  const input = el('input', { type: 'text', placeholder: 'e.g. Denim Wildflower Hoodie', autofocus: '' });
+  const content = el('div', {},
+    el('label', { class: 'field' }, 'Design name', input),
+    el('div', { class: 'btn-row' },
+      el('button', {
+        class: 'btn',
+        onclick: async () => {
+          const proj = newProject(input.value.trim());
+          await db.put('projects', proj);
+          modal.close();
+          navigate(`#/p/${proj.id}/garment`);
+        },
+      }, 'Create'),
+    ),
+  );
+  const modal = showModal('New design', content);
+  input.focus();
+}
+
+// ───────────────────────── js/screens/garment.js ─────────────────────────
+/**
+ * Add Garment screen (MVP screen 2).
+ * Photo/upload → automatic background removal → editable result (§18:
+ * tolerance slider + garment type + measured width all user-correctable).
+ */
+
+
+
+
+
+async function renderGarment(container) {
+  const p = state.project;
+  const pad = el('div', { class: 'pad' });
+  container.append(pad);
+
+  if (!p.garment) {
+    pad.append(
+      el('div', { class: 'empty-state' },
+        el('div', { class: 'big' }, '👕'),
+        el('div', {}, 'Photograph the garment you want to upcycle.'),
+        el('div', { class: 'small-note' },
+          'Lay it flat on a plain background in even light — the background is removed automatically and your design is placed on the real photo.'),
+      ),
+      photoPicker(async (dataUrl) => {
+        await processGarment(pad, dataUrl);
+      }),
+    );
+    return;
+  }
+
+  renderGarmentCard(pad);
+}
+
+function photoPicker(onPhoto, label = 'Take / upload photo') {
+  const input = el('input', {
+    type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none',
+  });
+  input.addEventListener('change', async () => {
+    if (input.files?.[0]) onPhoto(await fileToDataURL(input.files[0]));
+  });
+  const btn = el('button', { class: 'btn block', onclick: () => input.click() }, `📷 ${label}`);
+  return el('div', {}, input, btn);
+}
+
+async function processGarment(pad, dataUrl, tolerance = 42) {
+  pad.replaceChildren(el('div', { class: 'empty-state' },
+    el('div', { class: 'big' }, '✂️'),
+    el('div', {}, 'Removing background…')));
+  const img = await loadImage(dataUrl);
+  const seg = await ai.segmentGarment(img, { tolerance });
+  const p = state.project;
+  const prevType = p.garment?.type ?? 't-shirt';
+  const prevWidth = p.garment?.widthCm;
+  p.garment = newGarment({
+    image: dataUrl,
+    maskImage: seg.dataUrl,
+    bbox: seg.bbox,
+    type: prevType,
+    widthCm: prevWidth,
+  });
+  p.garment._tolerance = tolerance;
+  saveProject();
+  pad.replaceChildren();
+  renderGarmentCard(pad);
+}
+
+function renderGarmentCard(pad) {
+  const p = state.project;
+  const g = p.garment;
+
+  const frame = el('div', { class: 'photo-frame' }, el('img', { src: g.maskImage, alt: 'Garment with background removed' }));
+
+  const tolSlider = el('input', {
+    type: 'range', min: 5, max: 95, value: g._tolerance ?? 42,
+  });
+  tolSlider.addEventListener('change', () => processGarment(pad, g.image, Number(tolSlider.value)));
+
+  const typeSelect = el('select', {},
+    ...Object.entries(GARMENT_TYPES).map(([k, v]) =>
+      el('option', { value: k, selected: g.type === k ? '' : null }, v.label)));
+  typeSelect.addEventListener('change', () => {
+    g.type = typeSelect.value;
+    g.widthCm = GARMENT_TYPES[g.type].widthCm;
+    widthInput.value = g.widthCm;
+    saveProject();
+  });
+
+  const widthInput = el('input', { type: 'number', min: 10, max: 200, step: 0.5, value: g.widthCm });
+  widthInput.addEventListener('change', () => {
+    const v = parseFloat(widthInput.value);
+    if (v > 0) { g.widthCm = v; saveProject(); }
+  });
+
+  pad.append(
+    frame,
+    el('div', { class: 'card' },
+      el('h3', {}, 'Background removal'),
+      el('div', { class: 'muted' }, 'If too much or too little was removed, adjust and it re-runs.'),
+      el('label', { class: 'field' }, 'Removal strength', tolSlider),
+    ),
+    el('div', { class: 'card' },
+      el('h3', {}, 'Real-world scale'),
+      el('div', { class: 'muted' },
+        'Piece dimensions are calculated from the garment’s real width. Measure across the chest (or widest point in the photo) for accurate cutting patterns.'),
+      el('label', { class: 'field' }, 'Garment type', typeSelect),
+      el('label', { class: 'field' }, 'Measured width (cm)', widthInput),
+      el('div', { class: 'small-note' },
+        `Current calibration: ${pxPerMm(p).toFixed(2)} px per mm on this photo.`),
+    ),
+    el('div', { class: 'btn-row' },
+      el('button', { class: 'btn secondary', onclick: () => {
+        p.garment = null;
+        saveProject();
+        const cont = pad.parentNode;
+        cont.replaceChildren();
+        renderGarment(cont);
+      } }, 'Retake photo'),
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/textile`) }, 'Next: textiles →'),
+    ),
+  );
+}
+
+// ───────────────────────── js/screens/textile.js ─────────────────────────
+/**
+ * Add Textile screen (MVP screen 3).
+ * Photo/upload a donor material → tileable swatch + estimated usable area.
+ * Textiles are a user-level library (finite, unique materials — §2, §12).
+ */
+
+
+
+
+
+
+async function renderTextile(container) {
+  const pad = el('div', { class: 'pad' });
+  container.append(pad);
+  draw(pad);
+}
+
+function draw(pad) {
+  pad.replaceChildren();
+
+  const input = el('input', { type: 'file', accept: 'image/*', capture: 'environment', style: 'display:none' });
+  input.addEventListener('change', async () => {
+    if (!input.files?.[0]) return;
+    const dataUrl = await fileToDataURL(input.files[0]);
+    await addTextile(pad, dataUrl);
+  });
+
+  pad.append(
+    input,
+    el('button', { class: 'btn block', onclick: () => input.click() }, '📷 Photograph donor textile'),
+    el('div', { class: 'small-note' },
+      'Old jeans, a plaid shirt, a floral dress, quilt scraps… The photo becomes the actual material your pieces are cut from — this exact fabric, not a generic color.'),
+  );
+
+  if (!state.textiles.length) {
+    pad.append(el('div', { class: 'empty-state' },
+      el('div', { class: 'big' }, '🧶'),
+      el('div', {}, 'No donor textiles yet.')));
+    return;
+  }
+
+  pad.append(el('div', { class: 'section-title' }, 'Your material library'));
+  const grid = el('div', { class: 'swatch-grid' });
+  for (const t of state.textiles) {
+    const tile = el('button', { class: 'swatch' },
+      el('img', { src: t.swatch, alt: t.name }),
+      el('span', { class: 'cap' }, `${t.name} · ${fmtArea(t.estimatedAreaM2 * 1e6)}`));
+    tile.addEventListener('click', () => editTextile(pad, t));
+    grid.append(tile);
+  }
+  pad.append(grid);
+
+  if (state.project) {
+    pad.append(el('div', { class: 'btn-row' },
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${state.project.id}/artwork`) },
+        'Next: artwork →')));
+  }
+}
+
+async function addTextile(pad, dataUrl) {
+  pad.replaceChildren(el('div', { class: 'empty-state' },
+    el('div', { class: 'big' }, '🪡'), el('div', {}, 'Extracting material…')));
+  const img = await loadImage(dataUrl);
+  const swatch = ai.makeSwatch(img);
+  const textile = newTextile({ image: dataUrl, swatch });
+  await saveTextile(textile);
+  draw(pad);
+  editTextile(pad, textile);
+}
+
+function editTextile(pad, t) {
+  {
+    const name = el('input', { type: 'text', value: t.name });
+    const area = el('input', { type: 'number', min: 0.05, step: 0.05, value: t.estimatedAreaM2 });
+    const cost = el('input', { type: 'number', min: 0, step: 0.5, value: t.acquisitionCost ?? '' , placeholder: 'optional'});
+    const content = el('div', {},
+      el('div', { class: 'photo-frame' }, el('img', { src: t.swatch, alt: '' })),
+      el('label', { class: 'field' }, 'Name', name),
+      el('label', { class: 'field' }, 'Estimated usable material (m²)', area),
+      el('div', { class: 'small-note' },
+        'Reclaimed materials are finite — this feeds the cutting-layout utilization estimate. A pair of adult jeans yields roughly 0.5 m²; a maxi dress 1.5–2 m².'),
+      el('label', { class: 'field' }, 'Acquisition cost ($)', cost),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn', onclick: async () => {
+          t.name = name.value.trim() || t.name;
+          t.estimatedAreaM2 = parseFloat(area.value) || t.estimatedAreaM2;
+          t.remainingAreaM2 = Math.min(t.remainingAreaM2, t.estimatedAreaM2) || t.estimatedAreaM2;
+          t.acquisitionCost = cost.value === '' ? null : parseFloat(cost.value);
+          await saveTextile(t);
+          modal.close();
+          draw(pad);
+        } }, 'Save'),
+        el('button', { class: 'btn danger', onclick: async () => {
+          if (!(await appConfirm(`Remove “${t.name}” from your library?`, 'Remove'))) return;
+          await db.delete('textiles', t.id);
+          state.textiles = state.textiles.filter((x) => x.id !== t.id);
+          modal.close();
+          draw(pad);
+        } }, 'Delete'),
+      ),
+    );
+    const modal = showModal('Donor textile', content);
+  }
+}
+
+// ───────────────────────── js/screens/artwork.js ─────────────────────────
+/**
+ * Add Design / Artwork screen (MVP screen 4).
+ *
+ * Four ways in (§3): AI-generate from a text prompt, template library,
+ * upload SVG, upload/photograph PNG-JPG artwork (traced to a vector).
+ * Every artwork arrives as manufacturable components (§4) that the user
+ * can then place, retexture and edit in the Designer.
+ */
+
+
+
+
+
+
+
+async function renderArtwork(container) {
+  const p = state.project;
+  const pad = el('div', { class: 'pad' });
+  container.append(pad);
+
+  if (!p.garment) {
+    pad.append(el('div', { class: 'empty-state' },
+      el('div', { class: 'big' }, '👕'),
+      el('div', {}, 'Add the base garment first — artwork is sized against it.'),
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/garment`) }, 'Add garment')));
+    return;
+  }
+
+  // --- AI generate -----------------------------------------------------
+  const promptInput = el('input', {
+    type: 'text',
+    placeholder: 'e.g. three overlapping wildflowers with a stem',
+  });
+  const genBtn = el('button', { class: 'btn' }, '✨ Generate');
+  genBtn.addEventListener('click', () => {
+    const artwork = ai.generateArtwork(promptInput.value, Math.floor(Math.random() * 1e5));
+    confirmArtwork(artwork, pad);
+  });
+
+  pad.append(
+    el('div', { class: 'card' },
+      el('h3', {}, 'Generate with AI'),
+      el('div', { class: 'muted' }, 'Describes artwork designed for fabric appliqué — it arrives already split into cuttable pieces you can edit.'),
+      el('label', { class: 'field' }, 'What do you want to make?', promptInput),
+      el('div', { class: 'btn-row' }, genBtn),
+    ),
+  );
+
+  // --- Upload / photograph ---------------------------------------------
+  const fileInput = el('input', { type: 'file', accept: 'image/*,.svg', style: 'display:none' });
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files?.[0];
+    if (!file) return;
+    try {
+      const artwork = await importFile(file);
+      if (!artwork) {
+        appAlert('Couldn’t find a traceable shape in that image. Try higher contrast (dark artwork on light background) or a PNG with transparency.');
+        return;
+      }
+      confirmArtwork(artwork, pad);
+    } catch (err) {
+      console.error(err);
+      appAlert('Could not read that file.');
+    } finally {
+      fileInput.value = '';
+    }
+  });
+  pad.append(
+    el('div', { class: 'card' },
+      el('h3', {}, 'Upload or photograph artwork'),
+      el('div', { class: 'muted' },
+        'SVG, PNG or JPG — or photograph a drawing. Raster images are traced into a simplified, sewable outline.'),
+      fileInput,
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn secondary', onclick: () => fileInput.click() }, '📁 Choose file / photo')),
+    ),
+  );
+
+  // --- Template library -------------------------------------------------
+  pad.append(el('div', { class: 'section-title' }, 'Template library'));
+  const grid = el('div', { class: 'art-grid' });
+  for (const t of TEMPLATES) {
+    const artwork = t.build(7);
+    const tile = el('button', { class: 'art-tile' });
+    tile.append(artworkThumb(artwork), el('div', { class: 'cap' }, t.name));
+    tile.addEventListener('click', () => confirmArtwork(t.build(Math.floor(Math.random() * 1e5)), pad));
+    grid.append(tile);
+  }
+  pad.append(grid);
+
+  if (p.pieces.length) {
+    pad.append(el('div', { class: 'btn-row' },
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/designer`) }, 'Open designer →')));
+  }
+}
+
+/** Mini SVG rendering of an artwork's components. */
+function artworkThumb(artwork, size = 96) {
+  const svg = svgEl('svg', { viewBox: computeViewBox(artwork), width: '100%', height: '72' });
+  for (const c of artwork.components) {
+    const g = svgEl('g', {
+      transform: `translate(${c.offsetMm?.x ?? 0} ${c.offsetMm?.y ?? 0}) rotate(${c.rotation ?? 0})`,
+    });
+    g.append(svgEl('path', { d: c.pathMm, fill: roleColor(c.role), stroke: '#14110f', 'stroke-width': 1 }));
+    svg.append(g);
+  }
+  return svg;
+}
+
+function roleColor(role) {
+  return { petal: '#7d9bc0', center: '#e3c25a', leaf: '#7fae7a', stem: '#7fae7a', body: '#c0847d' }[role] || '#a89e93';
+}
+
+function computeViewBox(artwork) {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const c of artwork.components) {
+    // conservative: bbox center offset ± half diagonal covers any rotation
+    const ox = c.offsetMm?.x ?? 0, oy = c.offsetMm?.y ?? 0;
+    const reach = Math.hypot(
+      Math.max(Math.abs(c.bboxMm.x), Math.abs(c.bboxMm.x + c.bboxMm.w)),
+      Math.max(Math.abs(c.bboxMm.y), Math.abs(c.bboxMm.y + c.bboxMm.h)));
+    minX = Math.min(minX, ox - reach); maxX = Math.max(maxX, ox + reach);
+    minY = Math.min(minY, oy - reach); maxY = Math.max(maxY, oy + reach);
+  }
+  const pd = 4;
+  return `${minX - pd} ${minY - pd} ${maxX - minX + pd * 2} ${maxY - minY + pd * 2}`;
+}
+
+/** Import an uploaded file into artwork components. */
+async function importFile(file) {
+  if (file.type === 'image/svg+xml' || /\.svg$/i.test(file.name)) {
+    const text = await file.text();
+    const fromPaths = importSvgPaths(text);
+    if (fromPaths) return fromPaths;
+    // Fallback: rasterize the SVG and trace its silhouette.
+    const url = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(text)));
+    const img = await loadImage(url);
+    return traceToArtwork(img, file.name);
+  }
+  const dataUrl = await fileToDataURL(file, 1000);
+  const img = await loadImage(dataUrl);
+  return traceToArtwork(img, file.name);
+}
+
+function traceToArtwork(img, name) {
+  const traced = ai.traceArtwork(img, { targetWMm: 100 });
+  if (!traced) return null;
+  return {
+    name: name.replace(/\.[^.]+$/, '') || 'Traced artwork',
+    components: [{
+      name: 'Traced shape', role: 'body',
+      pathMm: traced.pathMm, bboxMm: traced.bboxMm,
+      offsetMm: { x: 0, y: 0 }, quantity: 1,
+    }],
+  };
+}
+
+/**
+ * Native vector import for simple flat SVGs: top-level paths with no
+ * transforms. Anything more complex falls back to raster tracing.
+ * Uses a temporarily-attached hidden <svg> so getBBox() works.
+ */
+function importSvgPaths(text) {
+  let doc;
+  try {
+    doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  } catch { return null; }
+  if (doc.querySelector('parsererror')) return null;
+  if (doc.querySelector('[transform]')) return null; // keep MVP import predictable
+  const paths = [...doc.querySelectorAll('path')].slice(0, 16);
+  if (!paths.length) return null;
+
+  const probe = svgEl('svg', { style: 'position:absolute;width:0;height:0;overflow:hidden' });
+  document.body.append(probe);
+  try {
+    // Measure, then resample each path into our canonical geometry format
+    // (absolute mm coordinates, closed smooth path) so downstream code has a
+    // single path representation for rendering AND cutting.
+    const measured = paths.map((p) => {
+      const clone = svgEl('path', { d: p.getAttribute('d') || '' });
+      probe.append(clone);
+      const bb = clone.getBBox();
+      return { node: clone, bb };
+    }).filter(({ bb }) => bb.width > 0 && bb.height > 0);
+    if (!measured.length) return null;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const { bb } of measured) {
+      minX = Math.min(minX, bb.x); maxX = Math.max(maxX, bb.x + bb.width);
+      minY = Math.min(minY, bb.y); maxY = Math.max(maxY, bb.y + bb.height);
+    }
+    const wUnits = maxX - minX;
+    if (!(wUnits > 0)) return null;
+    const mmPerUnit = 100 / wUnits; // normalize artwork to 100 mm wide
+    const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
+
+    const components = [];
+    measured.forEach(({ node, bb }, i) => {
+      const len = node.getTotalLength();
+      if (!(len > 0)) return;
+      const n = Math.min(240, Math.max(48, Math.round(len / (wUnits / 60))));
+      // Re-center each component on its own bbox center: piece transforms
+      // (rotate/scale) act about the path's local origin, and offsetMm
+      // preserves the arrangement inside the artwork.
+      const compCx = bb.x + bb.width / 2, compCy = bb.y + bb.height / 2;
+      const pts = [];
+      for (let k = 0; k < n; k++) {
+        const pt = node.getPointAtLength((len * k) / n);
+        pts.push([(pt.x - compCx) * mmPerUnit, (pt.y - compCy) * mmPerUnit]);
+      }
+      const simplified = simplifyPolyline(pts, 0.4);
+      if (simplified.length < 3) return;
+      const pathMm = smoothClosedPath(simplified, 0.8);
+      components.push({
+        name: `Path ${i + 1}`, role: 'body',
+        pathMm,
+        bboxMm: pathBBox(pathMm),
+        offsetMm: {
+          x: (bb.x + bb.width / 2 - cx) * mmPerUnit,
+          y: (bb.y + bb.height / 2 - cy) * mmPerUnit,
+        },
+        quantity: 1,
+      });
+    });
+    if (!components.length) return null;
+    return { name: 'Imported SVG', components };
+  } finally {
+    probe.remove();
+  }
+}
+
+/** Show the decomposition, let the user tweak size, then add to the design. */
+function confirmArtwork(artwork, pad) {
+  const p = state.project;
+  const sizeInput = el('input', { type: 'range', min: 30, max: 220, value: 100 });
+  const thumbHolder = el('div', { class: 'photo-frame', style: 'background:#fff; padding:8px' });
+  thumbHolder.append(artworkThumb(artwork));
+
+  const pieceList = el('div', { class: 'muted' }, describeComponents(artwork));
+
+  const content = el('div', {},
+    thumbHolder,
+    el('div', { class: 'section-title' }, 'Cuttable pieces'),
+    pieceList,
+    el('div', { class: 'small-note' }, 'You can resize, retexture, duplicate or delete each piece in the designer.'),
+    el('div', { class: 'btn-row' },
+      el('button', { class: 'btn', onclick: () => { addToDesign(artwork); modal.close(); navigate(`#/p/${p.id}/designer`); } },
+        'Add to design'),
+      el('button', { class: 'btn secondary', onclick: () => modal.close() }, 'Cancel'),
+    ),
+  );
+  const modal = showModal(artwork.name, content);
+}
+
+function describeComponents(artwork) {
+  const byRole = {};
+  for (const c of artwork.components) byRole[c.role] = (byRole[c.role] || 0) + 1;
+  return Object.entries(byRole)
+    .map(([role, n]) => `${n} × ${role}`)
+    .join(' · ') + ` — ${artwork.components.length} pieces total`;
+}
+
+/** Instantiate artwork components as placed DesignPieces at garment center. */
+function addToDesign(artwork) {
+  const p = state.project;
+  const ppm = pxPerMm(p);
+  const g = p.garment;
+  // Drop at the chest area: horizontally centred, upper third of the garment.
+  const cx = g.bbox.x + g.bbox.w / 2;
+  const cy = g.bbox.y + g.bbox.h * 0.38;
+  const groupId = uid('art');
+  const groupName = artwork.name;
+  const maxLayer = p.pieces.reduce((m, x) => Math.max(m, x.layer), -1);
+
+  artwork.components.forEach((c, i) => {
+    const piece = newPiece({
+      name: c.name,
+      role: c.role,
+      group: groupName,
+      pathMm: c.pathMm,
+      bboxMm: c.bboxMm,
+      x: cx + (c.offsetMm?.x ?? 0) * ppm,
+      y: cy + (c.offsetMm?.y ?? 0) * ppm,
+      rotation: c.rotation ?? 0,
+      scale: 1,
+      textileId: state.textiles[0]?.id ?? null,
+    });
+    piece.groupId = groupId;
+    piece.layer = maxLayer + 1 + i;
+    p.pieces.push(piece);
+  });
+  saveProject();
+}
+
+// ───────────────────────── js/screens/designer.js ─────────────────────────
+/**
+ * Designer screen (MVP screen 5) — the visual garment canvas.
+ *
+ * The garment photo is the workspace; pieces render as SVG paths filled with
+ * their assigned donor-textile texture. Gestures:
+ *   - drag a piece to move it (whole artwork group moves when group mode is on)
+ *   - pinch with two fingers to resize + rotate
+ *   - mouse: corner handle = resize, top handle = rotate
+ * Toolbar: duplicate · mirror · layer up/down · assign textile · group · delete.
+ *
+ * All edits mutate the production model (mm geometry + placement numbers) and
+ * autosave; rendering is derived from that model, never the reverse (§19).
+ */
+
+
+
+
+const SVGNS = 'http://www.w3.org/2000/svg';
+
+async function renderDesigner(container) {
+  const p = state.project;
+
+  if (!p.garment) {
+    container.append(el('div', { class: 'pad' }, el('div', { class: 'empty-state' },
+      el('div', { class: 'big' }, '👕'),
+      el('div', {}, 'Add a garment photo first.'),
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/garment`) }, 'Add garment'))));
+    return;
+  }
+
+  const img = await loadImage(p.garment.maskImage);
+  const W = img.naturalWidth, H = img.naturalHeight;
+  const ppm = pxPerMm(p);
+
+  const wrap = el('div', { id: 'designer-wrap' });
+  const svg = svgEl('svg', { id: 'designer-svg', viewBox: `0 0 ${W} ${H}` });
+  wrap.append(svg);
+
+  const defs = svgEl('defs');
+  svg.append(defs);
+  svg.append(svgEl('image', { href: p.garment.maskImage, x: 0, y: 0, width: W, height: H }));
+
+  const piecesLayer = svgEl('g', { id: 'pieces' });
+  const overlay = svgEl('g', { id: 'overlay' }); // selection handles
+  svg.append(piecesLayer, overlay);
+
+  // --- textile fill patterns -------------------------------------------
+  const patternIds = new Map();
+  function ensurePattern(textileId) {
+    if (!textileId) return null;
+    if (patternIds.has(textileId)) return patternIds.get(textileId);
+    const t = getTextile(textileId);
+    if (!t) return null;
+    const id = `pat_${textileId}`;
+    const tileMm = 80; // pattern tile ≈ 8 cm of fabric (piece-local units are mm)
+    const pat = svgEl('pattern', {
+      id, patternUnits: 'userSpaceOnUse', width: tileMm, height: tileMm,
+    });
+    pat.append(svgEl('image', { href: t.swatch, x: 0, y: 0, width: tileMm, height: tileMm, preserveAspectRatio: 'xMidYMid slice' }));
+    defs.append(pat);
+    patternIds.set(textileId, id);
+    return id;
+  }
+
+  // --- piece rendering --------------------------------------------------
+  const nodeByPiece = new Map();
+
+  function pieceTransform(piece) {
+    const s = piece.scale * ppm;
+    return `translate(${piece.x} ${piece.y}) rotate(${piece.rotation}) ` +
+      `scale(${piece.mirror ? -s : s} ${s})`;
+  }
+
+  function renderPieces() {
+    piecesLayer.replaceChildren();
+    nodeByPiece.clear();
+    const sorted = [...p.pieces].sort((a, b) => a.layer - b.layer);
+    for (const piece of sorted) {
+      const patId = ensurePattern(piece.textileId);
+      const g = svgEl('g', { class: 'piece', 'data-id': piece.id, transform: pieceTransform(piece) });
+      const path = svgEl('path', {
+        class: 'outline',
+        d: piece.pathMm,
+        fill: patId ? `url(#${patId})` : '#b9917b',
+        stroke: 'rgba(0,0,0,.55)',
+        'stroke-width': 1.5,
+      });
+      g.append(path);
+      piecesLayer.append(g);
+      nodeByPiece.set(piece.id, g);
+    }
+    updateSelectionUI();
+  }
+
+  // --- selection --------------------------------------------------------
+  let groupMode = true;
+
+  function selected() {
+    return p.pieces.find((x) => x.id === state.selectedPieceId) || null;
+  }
+  function selectionSet() {
+    const s = selected();
+    if (!s) return [];
+    return groupMode && s.groupId ? p.pieces.filter((x) => x.groupId === s.groupId) : [s];
+  }
+
+  function updateSelectionUI() {
+    overlay.replaceChildren();
+    const s = selected();
+    for (const [id, node] of nodeByPiece) {
+      node.classList.toggle('selected', !!s && selectionSet().some((x) => x.id === id));
+    }
+    toolbarState();
+    if (!s) { info.textContent = 'Tap a piece to edit it'; return; }
+    const wMm = s.bboxMm.w * s.scale, hMm = s.bboxMm.h * s.scale;
+    const t = getTextile(s.textileId);
+    info.textContent = `${s.name} — ${fmtMm(wMm)} × ${fmtMm(hMm)}` + (t ? ` · ${t.name}` : ' · no material');
+
+    // handles at the piece's transformed bbox corners (manual math keeps us
+    // independent of getCTM/viewBox quirks)
+    const rad = s.rotation * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const sy = s.scale * ppm;
+    const sx = s.mirror ? -sy : sy;
+    const pt = (x, y) => ({
+      x: s.x + cos * (x * sx) - sin * (y * sy),
+      y: s.y + sin * (x * sx) + cos * (y * sy),
+    });
+    const bb = s.bboxMm;
+    const corners = [
+      pt(bb.x, bb.y), pt(bb.x + bb.w, bb.y),
+      pt(bb.x + bb.w, bb.y + bb.h), pt(bb.x, bb.y + bb.h),
+    ];
+    const poly = svgEl('polygon', {
+      points: corners.map((c) => `${c.x},${c.y}`).join(' '),
+      fill: 'none', stroke: '#e8734a', 'stroke-dasharray': '6 4',
+      'stroke-width': 2, 'vector-effect': 'non-scaling-stroke',
+    });
+    overlay.append(poly);
+
+    const hr = Math.max(10, W / 55); // handle radius in svg units
+    const scaleHandle = svgEl('circle', {
+      class: 'handle', cx: corners[2].x, cy: corners[2].y, r: hr,
+    });
+    const topMid = { x: (corners[0].x + corners[1].x) / 2, y: (corners[0].y + corners[1].y) / 2 };
+    const rotHandle = svgEl('circle', {
+      class: 'handle rotate', cx: topMid.x, cy: topMid.y, r: hr,
+    });
+    scaleHandle.addEventListener('pointerdown', (e) => startHandleGesture(e, 'scale'));
+    rotHandle.addEventListener('pointerdown', (e) => startHandleGesture(e, 'rotate'));
+    overlay.append(scaleHandle, rotHandle);
+  }
+
+  // --- gesture machinery ------------------------------------------------
+  const pointers = new Map(); // pointerId → {x, y}
+  let gesture = null;
+
+  function svgPoint(e) {
+    const m = svg.getScreenCTM().inverse();
+    return new DOMPoint(e.clientX, e.clientY).matrixTransform(m);
+  }
+
+  function centroidOf(pieces) {
+    const n = pieces.length || 1;
+    return {
+      x: pieces.reduce((a, x) => a + x.x, 0) / n,
+      y: pieces.reduce((a, x) => a + x.y, 0) / n,
+    };
+  }
+
+  svg.addEventListener('pointerdown', (e) => {
+    svg.setPointerCapture(e.pointerId);
+    const pt = svgPoint(e);
+    pointers.set(e.pointerId, pt);
+
+    if (pointers.size === 2 && selected()) {
+      // pinch takes over from drag
+      const [a, b] = [...pointers.values()];
+      const set = selectionSet();
+      gesture = {
+        kind: 'pinch',
+        startDist: Math.hypot(b.x - a.x, b.y - a.y),
+        startAngle: Math.atan2(b.y - a.y, b.x - a.x),
+        centroid: centroidOf(set),
+        snapshot: set.map((x) => ({ id: x.id, x: x.x, y: x.y, scale: x.scale, rotation: x.rotation })),
+      };
+      return;
+    }
+
+    if (gesture?.kind === 'handle') return; // handle gestures own the pointer
+
+    const pieceEl = e.target.closest?.('.piece');
+    if (pieceEl) {
+      const id = pieceEl.dataset.id;
+      if (state.selectedPieceId !== id) {
+        state.selectedPieceId = id;
+        updateSelectionUI();
+      }
+      gesture = {
+        kind: 'drag', start: pt,
+        snapshot: selectionSet().map((x) => ({ id: x.id, x: x.x, y: x.y })),
+      };
+    } else if (!e.target.closest('.handle')) {
+      state.selectedPieceId = null;
+      gesture = null;
+      updateSelectionUI();
+    }
+  });
+
+  function startHandleGesture(e, mode) {
+    e.stopPropagation();
+    svg.setPointerCapture(e.pointerId);
+    const s = selected();
+    if (!s) return;
+    const pt = svgPoint(e);
+    const set = selectionSet();
+    const c = { x: s.x, y: s.y };
+    gesture = {
+      kind: 'handle', mode,
+      start: pt, center: c,
+      startDist: Math.hypot(pt.x - c.x, pt.y - c.y),
+      startAngle: Math.atan2(pt.y - c.y, pt.x - c.x),
+      centroid: centroidOf(set),
+      snapshot: set.map((x) => ({ id: x.id, x: x.x, y: x.y, scale: x.scale, rotation: x.rotation })),
+    };
+  }
+
+  svg.addEventListener('pointermove', (e) => {
+    if (!pointers.has(e.pointerId) && gesture?.kind !== 'handle') return;
+    const pt = svgPoint(e);
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, pt);
+    if (!gesture) return;
+
+    if (gesture.kind === 'drag') {
+      const dx = pt.x - gesture.start.x, dy = pt.y - gesture.start.y;
+      for (const snap of gesture.snapshot) {
+        const piece = p.pieces.find((x) => x.id === snap.id);
+        piece.x = snap.x + dx;
+        piece.y = snap.y + dy;
+        nodeByPiece.get(piece.id)?.setAttribute('transform', pieceTransform(piece));
+      }
+      liveSelection();
+    } else if (gesture.kind === 'pinch' && pointers.size >= 2) {
+      const [a, b] = [...pointers.values()];
+      const dist = Math.hypot(b.x - a.x, b.y - a.y);
+      const angle = Math.atan2(b.y - a.y, b.x - a.x);
+      applyScaleRotate(dist / gesture.startDist, (angle - gesture.startAngle) * 180 / Math.PI);
+    } else if (gesture.kind === 'handle') {
+      const c = gesture.center;
+      if (gesture.mode === 'scale') {
+        const dist = Math.hypot(pt.x - c.x, pt.y - c.y);
+        applyScaleRotate(Math.max(0.1, dist / gesture.startDist), 0);
+      } else {
+        const angle = Math.atan2(pt.y - c.y, pt.x - c.x);
+        applyScaleRotate(1, (angle - gesture.startAngle) * 180 / Math.PI);
+      }
+    }
+  });
+
+  function applyScaleRotate(ds, dAngleDeg) {
+    const rad = dAngleDeg * Math.PI / 180;
+    const cos = Math.cos(rad), sin = Math.sin(rad);
+    const c = gesture.centroid;
+    for (const snap of gesture.snapshot) {
+      const piece = p.pieces.find((x) => x.id === snap.id);
+      if (!piece) continue;
+      piece.scale = Math.min(8, Math.max(0.08, snap.scale * ds));
+      piece.rotation = snap.rotation + dAngleDeg;
+      // orbit position about the gesture centroid so groups stay coherent
+      const rx = snap.x - c.x, ry = snap.y - c.y;
+      piece.x = c.x + (rx * cos - ry * sin) * ds;
+      piece.y = c.y + (rx * sin + ry * cos) * ds;
+      nodeByPiece.get(piece.id)?.setAttribute('transform', pieceTransform(piece));
+    }
+    liveSelection();
+  }
+
+  function liveSelection() {
+    // cheap live update: redraw handles only (throttled by rAF)
+    if (liveSelection.raf) return;
+    liveSelection.raf = requestAnimationFrame(() => {
+      liveSelection.raf = null;
+      updateSelectionUI();
+    });
+  }
+
+  function endGesture(e) {
+    pointers.delete(e.pointerId);
+    if (gesture && (pointers.size === 0 || (gesture.kind === 'pinch' && pointers.size < 2))) {
+      gesture = null;
+      saveProject();
+    }
+  }
+  svg.addEventListener('pointerup', endGesture);
+  svg.addEventListener('pointercancel', endGesture);
+
+  // --- toolbar ----------------------------------------------------------
+  const info = el('div', { class: 'muted', style: 'padding:6px 14px 0; font-size:12px' }, '');
+
+  const tb = (icon, label, fn) => {
+    const b = el('button', { class: 'icon-btn', title: label, 'aria-label': label, onclick: fn }, icon);
+    return b;
+  };
+
+  const groupBtn = tb('⛓', 'Move whole artwork together', () => {
+    groupMode = !groupMode;
+    groupBtn.style.color = groupMode ? 'var(--accent)' : '';
+    updateSelectionUI();
+  });
+  groupBtn.style.color = 'var(--accent)';
+
+  const buttons = {
+    textile: tb('🧵', 'Assign material', assignTextile),
+    duplicate: tb('⧉', 'Duplicate', () => {
+      const set = selectionSet();
+      if (!set.length) return;
+      const newGroup = uid('art');
+      let last = null;
+      const maxLayer = p.pieces.reduce((m, x) => Math.max(m, x.layer), -1);
+      set.forEach((s, i) => {
+        const copy = { ...s, id: uid('piece'), x: s.x + 30, y: s.y + 30, groupId: s.groupId ? newGroup : null, layer: maxLayer + 1 + i };
+        p.pieces.push(copy);
+        last = copy;
+      });
+      state.selectedPieceId = last.id;
+      renderPieces();
+      saveProject();
+    }),
+    mirror: tb('⇋', 'Mirror', () => {
+      for (const s of selectionSet()) s.mirror = !s.mirror;
+      renderPieces();
+      saveProject();
+    }),
+    up: tb('▲', 'Bring forward', () => bumpLayer(1)),
+    down: tb('▼', 'Send backward', () => bumpLayer(-1)),
+    del: tb('🗑', 'Delete', () => {
+      const ids = new Set(selectionSet().map((x) => x.id));
+      if (!ids.size) return;
+      p.pieces = p.pieces.filter((x) => !ids.has(x.id));
+      state.selectedPieceId = null;
+      renderPieces();
+      saveProject();
+    }),
+  };
+
+  function bumpLayer(dir) {
+    const set = selectionSet();
+    if (!set.length) return;
+    for (const s of set) s.layer += dir * (set.length + 0.5);
+    // normalize layers to integers preserving order
+    [...p.pieces].sort((a, b) => a.layer - b.layer).forEach((x, i) => { x.layer = i; });
+    renderPieces();
+    saveProject();
+  }
+
+  function toolbarState() {
+    const has = !!selected();
+    for (const b of Object.values(buttons)) b.disabled = !has;
+  }
+
+  function assignTextile() {
+    const set = selectionSet();
+    if (!set.length) return;
+    if (!state.textiles.length) {
+      appAlert('Photograph a donor textile first (Textiles tab).');
+      return;
+    }
+    const grid = el('div', { class: 'swatch-grid' });
+    for (const t of state.textiles) {
+      const tile = el('button', { class: 'swatch' + (set[0].textileId === t.id ? ' selected' : '') },
+        el('img', { src: t.swatch, alt: t.name }),
+        el('span', { class: 'cap' }, t.name));
+      tile.addEventListener('click', () => {
+        for (const s of set) s.textileId = t.id;
+        modal.close();
+        renderPieces();
+        saveProject();
+      });
+      grid.append(tile);
+    }
+    const modal = showModal('Assign material', el('div', {},
+      el('div', { class: 'muted', style: 'margin-bottom:10px' },
+        groupMode ? 'Applies to the whole selected artwork.' : 'Applies to the selected piece.'),
+      grid));
+  }
+
+  const toolbar = el('div', { id: 'designer-toolbar' },
+    groupBtn, buttons.textile, buttons.duplicate, buttons.mirror,
+    buttons.up, buttons.down, buttons.del,
+  );
+
+  // --- assemble ---------------------------------------------------------
+  const inner = el('div', { class: 'screen-inner' });
+  if (!p.pieces.length) {
+    inner.append(el('div', { class: 'pad', style: 'padding-bottom:0' },
+      el('div', { class: 'card' },
+        el('div', { class: 'muted' }, 'No artwork on the garment yet.'),
+        el('div', { class: 'btn-row', style: 'margin-bottom:0' },
+          el('button', { class: 'btn small', onclick: () => navigate(`#/p/${p.id}/artwork`) }, '+ Add artwork')))));
+  }
+  inner.append(info, wrap, toolbar);
+  container.append(inner);
+
+  renderPieces();
+}
+
+// ───────────────────────── js/screens/preview.js ─────────────────────────
+/**
+ * Preview screen (MVP screen 6) — realistic mockup of the finished piece.
+ *
+ * Local compositing pipeline (the ai.js adapter can swap in an image-model
+ * renderer later): real textile textures fill each piece, the garment
+ * photo's own luminance is multiplied back over the appliqué so wrinkles,
+ * seams and folds show through, a soft shadow suggests fabric thickness,
+ * and a dashed inset line simulates appliqué stitching.
+ *
+ * §19 guarantee: this screen READS the production model and writes only a
+ * cached image (`project.previewImage`). It never alters geometry.
+ */
+
+
+
+
+async function renderPreview(container) {
+  const p = state.project;
+  const pad = el('div', { class: 'pad' });
+  container.append(pad);
+
+  if (!p.garment || !p.pieces.length) {
+    pad.append(el('div', { class: 'empty-state' },
+      el('div', { class: 'big' }, '👁'),
+      el('div', {}, 'Place some artwork on the garment first.'),
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/designer`) }, 'Open designer')));
+    return;
+  }
+
+  pad.append(el('div', { class: 'empty-state' }, el('div', { class: 'big' }, '🪄'), el('div', {}, 'Rendering mockup…')));
+
+  const dataUrl = await renderMockup(p);
+  p.previewImage = dataUrl;
+  saveProject();
+
+  pad.replaceChildren(
+    el('div', { class: 'photo-frame' }, el('img', { src: dataUrl, alt: 'Mockup of the finished garment' })),
+    el('div', { class: 'card' },
+      el('h3', {}, 'Happy with it?'),
+      el('div', { class: 'muted' },
+        'This preview is a visualization. The cutting patterns are generated from the exact design geometry, not from this image.'),
+    ),
+    el('div', { class: 'btn-row' },
+      el('button', { class: 'btn secondary', onclick: () => navigate(`#/p/${p.id}/designer`) }, '← Keep editing'),
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/make`) }, 'Make it →'),
+    ),
+  );
+}
+
+async function renderMockup(p) {
+  const garmentImg = await loadImage(p.garment.maskImage);
+  const W = garmentImg.naturalWidth, H = garmentImg.naturalHeight;
+  const ppm = pxPerMm(p);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // neutral studio backdrop so the mockup reads as a product photo
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0, '#efece7');
+  grad.addColorStop(1, '#d9d4cc');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.drawImage(garmentImg, 0, 0);
+
+  // pre-render a grayscale copy of the garment for shading passes
+  const shade = document.createElement('canvas');
+  shade.width = W; shade.height = H;
+  const sctx = shade.getContext('2d');
+  sctx.filter = 'grayscale(1) brightness(1.25) contrast(0.9)';
+  sctx.drawImage(garmentImg, 0, 0);
+
+  const swatchCache = new Map();
+  async function swatchImage(textileId) {
+    if (!swatchCache.has(textileId)) {
+      const t = getTextile(textileId);
+      swatchCache.set(textileId, t ? await loadImage(t.swatch) : null);
+    }
+    return swatchCache.get(textileId);
+  }
+
+  const sorted = [...p.pieces].sort((a, b) => a.layer - b.layer);
+  for (const piece of sorted) {
+    const path = new Path2D(piece.pathMm);
+    const s = piece.scale * ppm;
+    const apply = (c) => {
+      c.translate(piece.x, piece.y);
+      c.rotate(piece.rotation * Math.PI / 180);
+      c.scale(piece.mirror ? -s : s, s);
+    };
+
+    // 1. fabric thickness: soft drop shadow under the piece
+    ctx.save();
+    apply(ctx);
+    ctx.shadowColor = 'rgba(0,0,0,0.4)';
+    ctx.shadowBlur = 2 * ppm; // shadow params are in device px, not local units
+    ctx.shadowOffsetX = 0.8 * ppm;
+    ctx.shadowOffsetY = 1.2 * ppm;
+    ctx.fillStyle = 'rgba(0,0,0,0.25)';
+    ctx.fill(path);
+    ctx.restore();
+
+    // 2. textile texture fill (texture density is per-mm, independent of
+    //    piece scale, like real printed fabric)
+    ctx.save();
+    apply(ctx);
+    ctx.clip(path);
+    const sw = await swatchImage(piece.textileId);
+    if (sw) {
+      const pat = ctx.createPattern(sw, 'repeat');
+      const tileMm = 80;
+      const m = new DOMMatrix().scale(tileMm / sw.width / piece.scale);
+      pat.setTransform(m);
+      ctx.fillStyle = pat;
+    } else {
+      ctx.fillStyle = '#b9917b';
+    }
+    const bb = piece.bboxMm;
+    ctx.fillRect(bb.x - 2, bb.y - 2, bb.w + 4, bb.h + 4);
+    ctx.restore();
+
+    // 3. garment shading multiplied over the piece: wrinkles/folds show through
+    ctx.save();
+    apply(ctx);
+    ctx.clip(path);
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = 0.5;
+    // draw the grayscale garment in garment-image space: undo piece transform
+    ctx.scale(piece.mirror ? -1 / s : 1 / s, 1 / s);
+    ctx.rotate(-piece.rotation * Math.PI / 180);
+    ctx.translate(-piece.x, -piece.y);
+    ctx.drawImage(shade, 0, 0);
+    ctx.restore();
+
+    // 4. appliqué stitching: dashed inset line around the edge
+    ctx.save();
+    apply(ctx);
+    const cbx = bb.x + bb.w / 2, cby = bb.y + bb.h / 2;
+    ctx.translate(cbx, cby);
+    ctx.scale(0.93, 0.93);
+    ctx.translate(-cbx, -cby);
+    ctx.strokeStyle = 'rgba(35,28,22,0.85)';
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([2.6, 1.8]);
+    ctx.stroke(path);
+    ctx.restore();
+
+    // 5. raw fabric edge: thin light line right on the cut edge
+    ctx.save();
+    apply(ctx);
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke(path);
+    ctx.restore();
+  }
+
+  return canvas.toDataURL('image/jpeg', 0.9);
+}
+
+// ───────────────────────── js/screens/make.js ─────────────────────────
+/**
+ * Make screen (MVP screen 7) — production mode.
+ *
+ * Converts the approved design into physical cutting patterns (§7–9):
+ *   - a cut list: every piece with true dimensions, material, layer order
+ *   - per-material nested cutting layouts with a utilization estimate
+ *   - exportable real-size SVG cutting sheets (Cricut/Silhouette/laser/hand)
+ *   - assembly notes (layer order = sewing order)
+ */
+
+
+
+
+
+
+async function renderMake(container) {
+  const p = state.project;
+  const pad = el('div', { class: 'pad' });
+  container.append(pad);
+
+  if (!p.pieces.length) {
+    pad.append(el('div', { class: 'empty-state' },
+      el('div', { class: 'big' }, '✂️'),
+      el('div', {}, 'Nothing to cut yet — design something first.'),
+      el('button', { class: 'btn', onclick: () => navigate(`#/p/${p.id}/designer`) }, 'Open designer')));
+    return;
+  }
+
+  // ---- seam allowance option ------------------------------------------
+  const seamInput = el('input', { type: 'number', min: 0, max: 15, step: 0.5, value: p.seamAllowanceMm ?? 0 });
+  seamInput.addEventListener('change', () => {
+    p.seamAllowanceMm = parseFloat(seamInput.value) || 0;
+    saveProject();
+    redraw();
+  });
+
+  pad.append(el('div', { class: 'card' },
+    el('h3', {}, 'Production settings'),
+    el('label', { class: 'field' }, 'Seam / stitch allowance (mm, 0 = raw-edge appliqué)', seamInput),
+    el('div', { class: 'small-note' },
+      'Allowance is drawn as a second dashed outline around each piece (approximate uniform offset in this version).'),
+  ));
+
+  const body = el('div', {});
+  pad.append(body);
+  redraw();
+
+  function redraw() {
+    body.replaceChildren();
+
+    // ---- cut list ------------------------------------------------------
+    const sorted = [...p.pieces].sort((a, b) => a.layer - b.layer);
+    const table = el('table', { class: 'piece-list' },
+      el('thead', {}, el('tr', {},
+        el('th', {}, '#'), el('th', {}, 'Piece'), el('th', {}, 'Size'),
+        el('th', {}, 'Material'), el('th', {}, 'Sew order'))),
+    );
+    const tbody = el('tbody');
+    sorted.forEach((piece, i) => {
+      const t = getTextile(piece.textileId);
+      tbody.append(el('tr', {},
+        el('td', {}, String(i + 1)),
+        el('td', {}, `${piece.group ? piece.group + ' · ' : ''}${piece.name}${piece.mirror ? ' (mirrored)' : ''}`),
+        el('td', {}, `${fmtMm(piece.bboxMm.w * piece.scale)} × ${fmtMm(piece.bboxMm.h * piece.scale)}`),
+        el('td', {}, t ? t.name : el('span', { style: 'color:var(--danger)' }, 'unassigned!')),
+        el('td', {}, String(i + 1)),
+      ));
+    });
+    table.append(tbody);
+    body.append(
+      el('div', { class: 'section-title' }, `Cut list — ${sorted.length} pieces`),
+      el('div', { style: 'overflow-x:auto' }, table),
+      el('div', { class: 'small-note' }, 'Sew order = layer order from the designer: bottom pieces first.'),
+    );
+
+    // ---- per-material nesting + export --------------------------------
+    const byTextile = new Map();
+    for (const piece of sorted) {
+      const key = piece.textileId || 'unassigned';
+      if (!byTextile.has(key)) byTextile.set(key, []);
+      byTextile.get(key).push(piece);
+    }
+
+    body.append(el('div', { class: 'section-title' }, 'Cutting sheets by material'));
+
+    for (const [textileId, pieces] of byTextile) {
+      const t = getTextile(textileId);
+      const matName = t ? t.name : 'Unassigned material';
+
+      const nestInput = pieces.map((piece) => ({
+        id: piece.id,
+        label: piece.name,
+        wMm: piece.bboxMm.w * piece.scale + 2 * (p.seamAllowanceMm || 0),
+        hMm: piece.bboxMm.h * piece.scale + 2 * (p.seamAllowanceMm || 0),
+      }));
+      const sheetW = 450; // default usable width of a laid-flat donor garment
+      const nested = nestPieces(nestInput, sheetW);
+
+      const exportPieces = pieces.map((piece) => ({
+        id: piece.id,
+        label: piece.name,
+        pathMm: piece.pathMm,
+        scale: piece.scale,
+        mirror: piece.mirror,
+        seamAllowanceMm: p.seamAllowanceMm || 0,
+      }));
+      const svgText = buildCuttingSheetSVG({
+        pieces: exportPieces,
+        placements: nested.placements,
+        sheetWMm: nested.sheetWMm,
+        usedHMm: nested.usedHMm + 8,
+        materialName: matName,
+      });
+
+      const sheetAreaMm2 = nested.sheetWMm * nested.usedHMm;
+      const remainingNote = t
+        ? ` · you estimated ${fmtArea(t.estimatedAreaM2 * 1e6)} of this material`
+        : '';
+
+      const holder = el('div', { class: 'layout-preview', html: svgText });
+
+      body.append(el('div', { class: 'card' },
+        el('h3', {}, `${matName} `, el('span', { class: 'pill' }, `${pieces.length} pieces`)),
+        el('div', { class: 'muted' },
+          `Layout: ${fmtMm(nested.sheetWMm)} wide × ${fmtMm(nested.usedHMm)} — ` +
+          `estimated material utilization ${(nested.utilization * 100).toFixed(0)}%` +
+          ` (${fmtArea(sheetAreaMm2)} consumed${remainingNote})`),
+        holder,
+        el('div', { class: 'btn-row' },
+          el('button', {
+            class: 'btn small',
+            onclick: () => downloadText(fileSafe(`${p.name}-${matName}-cutsheet.svg`), svgText),
+          }, '⬇ Cutting sheet SVG'),
+          el('button', {
+            class: 'btn small secondary',
+            onclick: () => exportIndividual(pieces, matName),
+          }, '⬇ Individual pieces'),
+        ),
+        !t ? el('div', { class: 'small-note', style: 'color:var(--danger)' },
+          'Assign a donor textile to these pieces in the designer.') : null,
+      ));
+    }
+
+    body.append(el('div', { class: 'card' },
+      el('h3', {}, 'Using the files'),
+      el('div', { class: 'muted', html:
+        'Exported SVGs are true-to-size (1&nbsp;unit&nbsp;=&nbsp;1&nbsp;mm). Import into ' +
+        '<b>Cricut Design Space</b>, <b>Silhouette Studio</b>, <b>Brother CanvasWorkspace</b> ' +
+        'or any laser/vinyl software — or print at 100% scale for hand cutting. ' +
+        'Pin or fuse each piece to its donor fabric, cut on the solid line, ' +
+        'then attach in the sew order shown above.' }),
+    ));
+  }
+
+  function exportIndividual(pieces, matName) {
+    const list = el('div', {});
+    for (const piece of pieces) {
+      list.append(el('div', { class: 'btn-row' },
+        el('button', {
+          class: 'btn small secondary',
+          onclick: () => downloadText(
+            fileSafe(`${piece.group || 'piece'}-${piece.name}.svg`),
+            buildPieceSVG({ label: piece.name, pathMm: piece.pathMm, scale: piece.scale, mirror: piece.mirror })),
+        }, `⬇ ${piece.name} (${fmtMm(piece.bboxMm.w * piece.scale)} × ${fmtMm(piece.bboxMm.h * piece.scale)})`)));
+    }
+    showModal(`${matName} — individual pieces`, list);
+  }
+}
+
+function fileSafe(name) {
+  return name.replace(/[^\w.-]+/g, '_');
+}
+
+// ───────────────────────── js/app.js ─────────────────────────
+/**
+ * app.js — hash router + app shell.
+ *
+ * Routes:
+ *   #/projects            project list (home)
+ *   #/p/<id>/<tab>        project workspace tabs:
+ *                         garment | textile | artwork | designer | preview | make
+ */
+
+
+
+
+
+
+
+
+
+const SCREENS = {
+  garment: { title: 'Base garment', render: renderGarment },
+  textile: { title: 'Donor textiles', render: renderTextile },
+  artwork: { title: 'Artwork', render: renderArtwork },
+  designer: { title: 'Designer', render: renderDesigner },
+  preview: { title: 'Preview', render: renderPreview },
+  make: { title: 'Make', render: renderMake },
+};
+
+const $screen = () => document.getElementById('screen');
+const $title = () => document.getElementById('screen-title');
+const $tabbar = () => document.getElementById('tabbar');
+const $back = () => document.getElementById('back-btn');
+
+function navigate(hash) {
+  location.hash = hash;
+}
+
+async function route() {
+  const hash = location.hash || '#/projects';
+  const parts = hash.replace(/^#\//, '').split('/');
+  const container = $screen();
+  container.replaceChildren();
+  window.scrollTo(0, 0);
+
+  await loadTextiles();
+
+  if (parts[0] === 'p' && parts[1]) {
+    const tab = SCREENS[parts[2]] ? parts[2] : 'garment';
+    if (!state.project || state.project.id !== parts[1]) {
+      const proj = await loadProject(parts[1]);
+      if (!proj) { navigate('#/projects'); return; }
+    }
+    $title().textContent = state.project.name;
+    $back().hidden = false;
+    $back().onclick = () => navigate('#/projects');
+    const bar = $tabbar();
+    bar.hidden = false;
+    bar.querySelectorAll('.tab').forEach((b) => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+      b.onclick = () => navigate(`#/p/${state.project.id}/${b.dataset.tab}`);
+    });
+    await SCREENS[tab].render(container);
+  } else {
+    state.project = null;
+    $title().textContent = 'ReStitch';
+    $back().hidden = true;
+    $tabbar().hidden = true;
+    await renderProjects(container);
+  }
+}
+
+window.addEventListener('hashchange', route);
+route();
+</script>
+</body>
+</html>

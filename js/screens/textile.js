@@ -4,7 +4,7 @@
  * Textiles are a user-level library (finite, unique materials — §2, §12).
  */
 
-import { el, fileToDataURL, loadImage, fmtArea, showModal } from '../util.js';
+import { el, fileToDataURL, loadImage, fmtArea, showModal, appConfirm } from '../util.js';
 import { state, newTextile, saveTextile } from '../state.js';
 import { db } from '../db.js';
 import { ai } from '../services/ai.js';
@@ -92,7 +92,7 @@ function editTextile(pad, t) {
           draw(pad);
         } }, 'Save'),
         el('button', { class: 'btn danger', onclick: async () => {
-          if (!confirm(`Remove “${t.name}” from your library?`)) return;
+          if (!(await appConfirm(`Remove “${t.name}” from your library?`, 'Remove'))) return;
           await db.delete('textiles', t.id);
           state.textiles = state.textiles.filter((x) => x.id !== t.id);
           modal.close();

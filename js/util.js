@@ -73,7 +73,32 @@ export function loadImage(src) {
   });
 }
 
-export function downloadText(filename, text, mime = 'image/svg+xml') {
+export async function downloadText(filename, text, mime = 'image/svg+xml') {
+  // Claude Artifact runtime: direct browser downloads are sandboxed away —
+  // use the viewer-consented save dialog, falling back to copy-the-text.
+  if (typeof window !== 'undefined' && window.claude?.use) {
+    let downloads = null;
+    try { downloads = await window.claude.use('downloads'); } catch { /* absent */ }
+    if (downloads) {
+      try {
+        await downloads.save({ filename, data: text });
+        return;
+      } catch (err) {
+        if (err?.code === 'declined') return; // viewer said no — respect it
+        if (err?.code === 'extension_not_enabled' || err?.code === 'rejected_extension') {
+          try {
+            await downloads.save({ filename: `${filename}.txt`, data: text });
+            return;
+          } catch (err2) {
+            if (err2?.code === 'declined') return;
+          }
+        }
+      }
+    }
+    showCopyFallback(filename, text);
+    return;
+  }
+
   const blob = new Blob([text], { type: mime });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -83,6 +108,53 @@ export function downloadText(filename, text, mime = 'image/svg+xml') {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/** Last-resort export path: show the file contents to copy/paste. */
+function showCopyFallback(filename, text) {
+  const ta = el('textarea', { rows: 8, readonly: '', style: 'font-family:monospace;font-size:11px' });
+  ta.value = text;
+  const copyBtn = el('button', { class: 'btn small' }, 'Copy to clipboard');
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+      copyBtn.textContent = 'Copied ✓';
+    } catch {
+      ta.select();
+      document.execCommand('copy');
+      copyBtn.textContent = 'Copied ✓';
+    }
+  });
+  showModal(filename, el('div', {},
+    el('div', { class: 'muted', style: 'margin-bottom:8px' },
+      `Saving isn’t available here — copy the file contents and paste into a file named “${filename}”.`),
+    ta,
+    el('div', { class: 'btn-row' }, copyBtn)));
+}
+
+/** In-app replacements for confirm()/alert() — sandboxed iframes (like the
+ *  Claude Artifact viewer) silently no-op the native dialogs. */
+export function appConfirm(message, confirmLabel = 'Delete') {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (v) => { if (!done) { done = true; modal.close(); resolve(v); } };
+    const modal = showModal('Are you sure?', el('div', {},
+      el('div', { class: 'muted', style: 'margin-bottom:12px' }, message),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn danger', onclick: () => finish(true) }, confirmLabel),
+        el('button', { class: 'btn secondary', onclick: () => finish(false) }, 'Cancel'))),
+      { onClose: () => { if (!done) { done = true; resolve(false); } } });
+  });
+}
+
+export function appAlert(message) {
+  return new Promise((resolve) => {
+    const modal = showModal('Heads up', el('div', {},
+      el('div', { class: 'muted', style: 'margin-bottom:12px' }, message),
+      el('div', { class: 'btn-row' },
+        el('button', { class: 'btn', onclick: () => modal.close() }, 'OK'))),
+      { onClose: resolve });
+  });
 }
 
 /** Bottom-sheet modal. Returns { close }. */

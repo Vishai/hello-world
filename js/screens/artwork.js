@@ -7,7 +7,7 @@
  * can then place, retexture and edit in the Designer.
  */
 
-import { el, svgEl, uid, fileToDataURL, loadImage, showModal } from '../util.js';
+import { el, svgEl, uid, fileToDataURL, loadImage, showModal, appAlert } from '../util.js';
 import { state, saveProject, newPiece, pxPerMm } from '../state.js';
 import { ai } from '../services/ai.js';
 import { TEMPLATES } from '../services/shapes.js';
@@ -55,13 +55,13 @@ export async function renderArtwork(container) {
     try {
       const artwork = await importFile(file);
       if (!artwork) {
-        alert('Couldn’t find a traceable shape in that image. Try higher contrast (dark artwork on light background) or a PNG with transparency.');
+        appAlert('Couldn’t find a traceable shape in that image. Try higher contrast (dark artwork on light background) or a PNG with transparency.');
         return;
       }
       confirmArtwork(artwork, pad);
     } catch (err) {
       console.error(err);
-      alert('Could not read that file.');
+      appAlert('Could not read that file.');
     } finally {
       fileInput.value = '';
     }

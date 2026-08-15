@@ -1,6 +1,6 @@
 /** Projects screen — create and manage designs (MVP screen 1 & 8). */
 
-import { el, showModal } from '../util.js';
+import { el, showModal, appConfirm } from '../util.js';
 import { newProject, listProjects, deleteProject } from '../state.js';
 import { db } from '../db.js';
 import { navigate } from '../app.js';
@@ -15,6 +15,11 @@ export async function renderProjects(container) {
       onclick: () => promptNewProject(),
     }, '+ New design'),
   );
+
+  if (db.isMemory()) {
+    pad.append(el('div', { class: 'small-note', style: 'margin-top:8px' },
+      'Demo mode: this environment blocks durable storage, so designs last for this visit only. Export your cutting files before closing.'));
+  }
 
   if (!projects.length) {
     pad.append(el('div', { class: 'empty-state' },
@@ -41,7 +46,7 @@ export async function renderProjects(container) {
         class: 'icon-btn', 'aria-label': 'Delete project',
         onclick: async (e) => {
           e.stopPropagation();
-          if (confirm(`Delete “${p.name}”? This cannot be undone.`)) {
+          if (await appConfirm(`Delete “${p.name}”? This cannot be undone.`)) {
             await deleteProject(p.id);
             container.replaceChildren();
             renderProjects(container);
