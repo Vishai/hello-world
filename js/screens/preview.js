@@ -12,7 +12,7 @@
  */
 
 import { el, loadImage } from '../util.js';
-import { state, saveProject, pxPerMm, getTextile, textileTileMm } from '../state.js';
+import { state, saveProject, pxPerMm, getTextile, textileTileMm, effectiveFabricOffset } from '../state.js';
 import { navigate } from '../app.js';
 
 export async function renderPreview(container) {
@@ -111,15 +111,15 @@ async function renderMockup(p) {
     const sw = await swatchImage(piece.textileId);
     if (sw) {
       // The fabric photo at physical scale (photoWidthCm of real fabric),
-      // independent of piece scale — like real printed/knitted cloth. Each
-      // piece samples a different region of the photo (offset derived from
-      // its position), the way separately-cut pieces actually would.
+      // independent of piece scale — like real printed/knitted cloth.
+      // Motif-placed pieces show their pinned region; the rest sample a
+      // region derived from their position, the way scissors naturally would.
       const pat = ctx.createPattern(sw, 'repeat');
-      const { wMm, hMm } = textileTileMm(getTextile(piece.textileId));
-      const k = wMm / sw.width / piece.scale;
-      const ox = ((piece.x * 0.61) % wMm + wMm) % wMm;
-      const oy = ((piece.y * 0.61) % hMm + hMm) % hMm;
-      pat.setTransform(new DOMMatrix().translate(-ox, -oy).scale(k));
+      const tile = textileTileMm(getTextile(piece.textileId));
+      const k = tile.wMm / sw.width / piece.scale;
+      const ef = effectiveFabricOffset(piece, tile);
+      pat.setTransform(new DOMMatrix()
+        .translate(ef.x / piece.scale, ef.y / piece.scale).scale(k));
       ctx.fillStyle = pat;
     } else {
       ctx.fillStyle = '#b9917b';

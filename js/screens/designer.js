@@ -13,7 +13,7 @@
  */
 
 import { el, svgEl, uid, loadImage, showModal, fmtMm, appAlert } from '../util.js';
-import { state, saveProject, pxPerMm, getTextile, textileTileMm } from '../state.js';
+import { state, saveProject, pxPerMm, getTextile, textileTileMm, effectiveFabricOffset } from '../state.js';
 import { navigate } from '../app.js';
 
 const SVGNS = 'http://www.w3.org/2000/svg';
@@ -45,28 +45,35 @@ export async function renderDesigner(container) {
   const overlay = svgEl('g', { id: 'overlay' }); // selection handles
   svg.append(piecesLayer, overlay);
 
-  // --- textile fill patterns -------------------------------------------
-  const patternIds = new Map();
-  function ensurePattern(textileId) {
-    if (!textileId) return null;
-    if (patternIds.has(textileId)) return patternIds.get(textileId);
-    const t = getTextile(textileId);
+  // --- fabric fill patterns --------------------------------------------
+  // One pattern PER PIECE: the fabric photo at physical scale (the photo
+  // covers photoWidthCm of real fabric; piece-local units are mm), shifted
+  // by the piece's fabric offset. No mirror-tiling — a big motif stays a
+  // motif, and each piece shows one contiguous region like real scissors
+  // would. Tile size is divided by piece scale so the print density stays
+  // physically constant however the piece is resized.
+  // (Known approximation: a mirrored piece shows the motif mirrored; the
+  // Make screen's placement guide shows the physically correct cut.)
+  const patternByPiece = new Map(); // pieceId → pattern element
+  function buildPattern(piece) {
+    const t = getTextile(piece.textileId);
     if (!t) return null;
-    const id = `pat_${textileId}`;
-    // Fill pieces with the ORIGINAL fabric photo at physical scale (the photo
-    // covers photoWidthCm of real fabric; piece-local units are mm). No
-    // mirror-tiling — a big motif stays a motif instead of a kaleidoscope,
-    // and a cut piece shows one contiguous region like real scissors would.
-    const { wMm, hMm } = textileTileMm(t);
+    const tile = textileTileMm(t);
+    const s = piece.scale || 1;
+    const ef = effectiveFabricOffset(piece, tile);
+    const id = `pat_${piece.id}`;
     const pat = svgEl('pattern', {
-      id, patternUnits: 'userSpaceOnUse', width: wMm, height: hMm,
+      id, patternUnits: 'userSpaceOnUse',
+      width: tile.wMm / s, height: tile.hMm / s,
+      patternTransform: `translate(${ef.x / s} ${ef.y / s})`,
     });
     pat.append(svgEl('image', {
-      href: t.image || t.swatch, x: 0, y: 0, width: wMm, height: hMm,
+      href: t.image || t.swatch, x: 0, y: 0,
+      width: tile.wMm / s, height: tile.hMm / s,
       preserveAspectRatio: 'none',
     }));
     defs.append(pat);
-    patternIds.set(textileId, id);
+    patternByPiece.set(piece.id, pat);
     return id;
   }
 
@@ -81,10 +88,12 @@ export async function renderDesigner(container) {
 
   function renderPieces() {
     piecesLayer.replaceChildren();
+    defs.replaceChildren();
     nodeByPiece.clear();
+    patternByPiece.clear();
     const sorted = [...p.pieces].sort((a, b) => a.layer - b.layer);
     for (const piece of sorted) {
-      const patId = ensurePattern(piece.textileId);
+      const patId = buildPattern(piece);
       const g = svgEl('g', { class: 'piece', 'data-id': piece.id, transform: pieceTransform(piece) });
       const path = svgEl('path', {
         class: 'outline',
@@ -102,6 +111,7 @@ export async function renderDesigner(container) {
 
   // --- selection --------------------------------------------------------
   let groupMode = true;
+  let fabricMode = false; // 🎯: drag slides the fabric under the piece
 
   function selected() {
     return p.pieces.find((x) => x.id === state.selectedPieceId) || null;
@@ -119,10 +129,18 @@ export async function renderDesigner(container) {
       node.classList.toggle('selected', !!s && selectionSet().some((x) => x.id === id));
     }
     toolbarState();
-    if (!s) { info.textContent = 'Tap a piece to edit it'; return; }
+    resetFabricBtn.style.display = fabricMode && s?.fabricOffsetMm ? '' : 'none';
+    if (!s) {
+      infoText.textContent = fabricMode
+        ? 'Fabric mode: tap a piece, then drag to slide the fabric under it'
+        : 'Tap a piece to edit it';
+      return;
+    }
     const wMm = s.bboxMm.w * s.scale, hMm = s.bboxMm.h * s.scale;
     const t = getTextile(s.textileId);
-    info.textContent = `${s.name} — ${fmtMm(wMm)} × ${fmtMm(hMm)}` + (t ? ` · ${t.name}` : ' · no material');
+    infoText.textContent = fabricMode
+      ? `${s.name} — drag inside the piece to slide the fabric${s.fabricOffsetMm ? ' · 📍 motif-placed' : ''}`
+      : `${s.name} — ${fmtMm(wMm)} × ${fmtMm(hMm)}` + (t ? ` · ${t.name}` : ' · no material');
 
     // handles at the piece's transformed bbox corners (manual math keeps us
     // independent of getCTM/viewBox quirks)
@@ -204,6 +222,16 @@ export async function renderDesigner(container) {
         state.selectedPieceId = id;
         updateSelectionUI();
       }
+      const piece = p.pieces.find((x) => x.id === id);
+      const fabricTextile = fabricMode ? getTextile(piece?.textileId) : null;
+      if (fabricTextile) {
+        // fabric-shift: the piece stays put; the fabric slides under it
+        gesture = {
+          kind: 'fabric', start: pt, piece,
+          snapshot: { ...effectiveFabricOffset(piece, textileTileMm(fabricTextile)) },
+        };
+        return;
+      }
       gesture = {
         kind: 'drag', start: pt,
         snapshot: selectionSet().map((x) => ({ id: x.id, x: x.x, y: x.y })),
@@ -262,6 +290,22 @@ export async function renderDesigner(container) {
         const angle = Math.atan2(pt.y - c.y, pt.x - c.x);
         applyScaleRotate(1, (angle - gesture.startAngle) * 180 / Math.PI);
       }
+    } else if (gesture.kind === 'fabric') {
+      // screen delta → the piece's local frame (un-rotate) → physical fabric
+      // mm (un-zoom by ppm; mirror flips x). The fabric follows the finger.
+      const piece = gesture.piece;
+      const Dx = pt.x - gesture.start.x, Dy = pt.y - gesture.start.y;
+      const rad = piece.rotation * Math.PI / 180;
+      const rx = Math.cos(rad) * Dx + Math.sin(rad) * Dy;
+      const ry = -Math.sin(rad) * Dx + Math.cos(rad) * Dy;
+      piece.fabricOffsetMm = {
+        x: gesture.snapshot.x + (rx / ppm) * (piece.mirror ? -1 : 1),
+        y: gesture.snapshot.y + ry / ppm,
+      };
+      const s = piece.scale || 1;
+      patternByPiece.get(piece.id)?.setAttribute('patternTransform',
+        `translate(${piece.fabricOffsetMm.x / s} ${piece.fabricOffsetMm.y / s})`);
+      liveSelection();
     }
   });
 
@@ -295,15 +339,30 @@ export async function renderDesigner(container) {
   function endGesture(e) {
     pointers.delete(e.pointerId);
     if (gesture && (pointers.size === 0 || (gesture.kind === 'pinch' && pointers.size < 2))) {
+      const kind = gesture.kind;
       gesture = null;
       saveProject();
+      // resize gestures change piece scale → rebuild patterns so fabric
+      // print density snaps back to true physical size
+      if (kind === 'pinch' || kind === 'handle') renderPieces();
     }
   }
   svg.addEventListener('pointerup', endGesture);
   svg.addEventListener('pointercancel', endGesture);
 
   // --- toolbar ----------------------------------------------------------
-  const info = el('div', { class: 'muted', style: 'padding:6px 14px 0; font-size:12px' }, '');
+  const infoText = el('span', {}, '');
+  const resetFabricBtn = el('button', {
+    class: 'btn small secondary', style: 'display:none; margin-left:8px; padding:3px 8px; font-size:11px',
+    onclick: () => {
+      const s = selected();
+      if (!s) return;
+      delete s.fabricOffsetMm;
+      renderPieces();
+      saveProject();
+    },
+  }, '↺ Reset fabric');
+  const info = el('div', { class: 'muted', style: 'padding:6px 14px 0; font-size:12px' }, infoText, resetFabricBtn);
 
   const tb = (icon, label, fn) => {
     const b = el('button', { class: 'icon-btn', title: label, 'aria-label': label, onclick: fn }, icon);
@@ -316,6 +375,12 @@ export async function renderDesigner(container) {
     updateSelectionUI();
   });
   groupBtn.style.color = 'var(--accent)';
+
+  const fabricBtn = tb('🎯', 'Shift fabric under piece', () => {
+    fabricMode = !fabricMode;
+    fabricBtn.style.color = fabricMode ? 'var(--accent)' : '';
+    updateSelectionUI();
+  });
 
   const buttons = {
     textile: tb('🧵', 'Assign material', assignTextile),
@@ -393,7 +458,7 @@ export async function renderDesigner(container) {
   }
 
   const toolbar = el('div', { id: 'designer-toolbar' },
-    groupBtn, buttons.textile, buttons.duplicate, buttons.mirror,
+    groupBtn, fabricBtn, buttons.textile, buttons.duplicate, buttons.mirror,
     buttons.up, buttons.down, buttons.del,
   );
 

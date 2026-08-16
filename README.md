@@ -36,9 +36,9 @@ node --test tests/*.test.mjs
 | **Garment** | Photo/upload → automatic background removal (adjustable), garment type, real-world width calibration (px ↔ mm) |
 | **Textiles** | Photo/upload donor material → tileable texture swatch, estimated usable area, cost — a user-level library of finite, unique materials |
 | **Artwork** | Generate from a text prompt ("a small five-petal wildflower with a stem"), pick a template, upload an SVG, or upload/photograph artwork which is traced into a simplified sewable vector |
-| **Designer** | Drag / pinch-resize / pinch-rotate pieces on the actual garment photo; duplicate, mirror, layer, group-move, assign each piece to a donor textile |
+| **Designer** | Drag / pinch-resize / pinch-rotate pieces on the actual garment photo; duplicate, mirror, layer, group-move, assign each piece to a donor textile. Fabric-shift mode (🎯) slides the fabric under a piece to pin exactly which region of a motif it's cut from |
 | **Preview** | Composited mockup: real textile texture per piece, the garment photo's wrinkles/seams shaded through, stitch lines and fabric-thickness shadows |
-| **Make** | Cut list with true dimensions and sew order, per-material nested cutting layouts with a utilization estimate, real-size SVG export (1 unit = 1 mm) for Cricut / Silhouette / Brother / laser / print-and-hand-cut |
+| **Make** | Cut list with true dimensions and sew order, per-material nested cutting layouts with a utilization estimate, real-size SVG export (1 unit = 1 mm) for Cricut / Silhouette / Brother / laser / print-and-hand-cut. Motif-placed pieces get a placement guide: the fabric photo with cut outlines at their pinned spots, with overlap warnings |
 
 ## Architecture
 

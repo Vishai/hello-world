@@ -8,8 +8,8 @@
  *   - assembly notes (layer order = sewing order)
  */
 
-import { el, downloadText, fmtMm, fmtArea, showModal } from '../util.js';
-import { state, saveProject, getTextile } from '../state.js';
+import { el, svgEl, downloadText, fmtMm, fmtArea, showModal } from '../util.js';
+import { state, saveProject, getTextile, textileTileMm } from '../state.js';
 import { nestPieces } from '../services/nest.js';
 import { buildCuttingSheetSVG, buildPieceSVG } from '../services/svgexport.js';
 import { navigate } from '../app.js';
@@ -61,7 +61,9 @@ export async function renderMake(container) {
       const t = getTextile(piece.textileId);
       tbody.append(el('tr', {},
         el('td', {}, String(i + 1)),
-        el('td', {}, `${piece.group ? piece.group + ' · ' : ''}${piece.name}${piece.mirror ? ' (mirrored)' : ''}`),
+        el('td', {},
+          `${piece.group ? piece.group + ' · ' : ''}${piece.name}${piece.mirror ? ' (mirrored)' : ''}`,
+          piece.fabricOffsetMm ? el('span', { class: 'pill', style: 'margin-left:6px' }, '📍 motif') : null),
         el('td', {}, `${fmtMm(piece.bboxMm.w * piece.scale)} × ${fmtMm(piece.bboxMm.h * piece.scale)}`),
         el('td', {}, t ? t.name : el('span', { style: 'color:var(--danger)' }, 'unassigned!')),
         el('td', {}, String(i + 1)),
@@ -140,6 +142,9 @@ export async function renderMake(container) {
         !t ? el('div', { class: 'small-note', style: 'color:var(--danger)' },
           'Assign a donor textile to these pieces in the designer.') : null,
       ));
+
+      const placed = pieces.filter((piece) => piece.fabricOffsetMm);
+      if (t && placed.length) body.append(motifGuideCard(t, placed));
     }
 
     body.append(el('div', { class: 'card' },
@@ -170,4 +175,83 @@ export async function renderMake(container) {
 
 function fileSafe(name) {
   return name.replace(/[^\w.-]+/g, '_');
+}
+
+/**
+ * Motif placement guide: the fabric photo (at physical scale) with cut
+ * outlines drawn exactly where each motif-placed piece must be taken from.
+ * The mapping inverts the designer's fill: a local point L (mm, piece
+ * space) shows fabric at F = L·scale − offset, wrapped into the photo tile.
+ * Mirrored pieces are drawn flipped — the physically correct cut on
+ * unmirrored fabric.
+ */
+function motifGuideCard(t, placed) {
+  const tile = textileTileMm(t);
+  const items = placed.map((piece) => {
+    const s = piece.scale, ef = piece.fabricOffsetMm;
+    const bb = piece.bboxMm;
+    const sx = piece.mirror ? -s : s;
+    const rawX = (piece.mirror ? -(bb.x + bb.w) : bb.x) * s - ef.x;
+    const rawY = bb.y * s - ef.y;
+    const wrapDx = (((rawX % tile.wMm) + tile.wMm) % tile.wMm) - rawX;
+    const wrapDy = (((rawY % tile.hMm) + tile.hMm) % tile.hMm) - rawY;
+    return {
+      piece,
+      transform: `translate(${wrapDx - ef.x} ${wrapDy - ef.y}) scale(${sx} ${s})`,
+      rect: { x: rawX + wrapDx, y: rawY + wrapDy, w: bb.w * s, h: bb.h * s },
+    };
+  });
+
+  // canvas large enough for outlines that run past the photo's right/bottom
+  // edge (the fill wraps around; the guide just shows the photo repeating)
+  const maxX = Math.min(2 * tile.wMm, Math.max(tile.wMm, ...items.map((i) => i.rect.x + i.rect.w)));
+  const maxY = Math.min(2 * tile.hMm, Math.max(tile.hMm, ...items.map((i) => i.rect.y + i.rect.h)));
+  const svg = svgEl('svg', { viewBox: `0 0 ${maxX} ${maxY}` });
+  for (const ix of [0, tile.wMm]) {
+    for (const iy of [0, tile.hMm]) {
+      if (ix < maxX && iy < maxY) {
+        svg.append(svgEl('image', {
+          href: t.image || t.swatch, x: ix, y: iy,
+          width: tile.wMm, height: tile.hMm, preserveAspectRatio: 'none',
+        }));
+      }
+    }
+  }
+  for (const it of items) {
+    svg.append(svgEl('path', {
+      d: it.piece.pathMm, transform: it.transform,
+      fill: 'rgba(232,115,74,0.18)', stroke: '#e8734a', 'stroke-width': 1.4,
+    }));
+    const label = svgEl('text', {
+      x: it.rect.x + it.rect.w / 2, y: it.rect.y + it.rect.h / 2,
+      'text-anchor': 'middle', 'dominant-baseline': 'middle',
+      fill: '#fff', 'font-size': 8, 'font-family': 'sans-serif',
+      stroke: 'rgba(0,0,0,0.65)', 'stroke-width': 2.4, 'paint-order': 'stroke',
+    });
+    label.textContent = it.piece.name;
+    svg.append(label);
+  }
+
+  const overlaps = [];
+  for (let i = 0; i < items.length; i++) {
+    for (let j = i + 1; j < items.length; j++) {
+      const a = items[i].rect, b = items[j].rect;
+      if (a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h) {
+        overlaps.push(`${items[i].piece.name} & ${items[j].piece.name}`);
+      }
+    }
+  }
+
+  return el('div', { class: 'card' },
+    el('h3', {}, '📍 Motif placement — ', t.name),
+    el('div', { class: 'muted' },
+      `${placed.length} piece${placed.length === 1 ? '' : 's'} pinned to a specific spot on the fabric. ` +
+      'Cut these from the marked outlines (photo shown at real scale) so the motif lands exactly as designed; ' +
+      'everything else can be cut from the nested layout above.'),
+    el('div', { class: 'layout-preview', style: 'margin-top:10px' }, svg),
+    overlaps.length
+      ? el('div', { class: 'small-note', style: 'color:var(--danger)' },
+          `⚠ Overlapping fabric regions: ${overlaps.join('; ')}. These pieces claim the same spot on the fabric — shift one of them in the designer (🎯 mode).`)
+      : null,
+  );
 }

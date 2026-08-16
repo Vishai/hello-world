@@ -73,6 +73,21 @@ export function textileTileMm(t) {
 }
 
 /**
+ * Effective fabric offset for a piece, in PHYSICAL fabric mm.
+ * A piece the user has motif-placed (fabric-shift drag) carries an explicit
+ * `fabricOffsetMm` — production data: it says which region of the donor
+ * fabric this piece must be cut from. Pieces without one get a deterministic
+ * position-derived offset so separate pieces sample different fabric
+ * regions, the way scissors naturally would.
+ */
+export function effectiveFabricOffset(piece, tile) {
+  if (piece.fabricOffsetMm) return piece.fabricOffsetMm;
+  const ox = (((piece.x * 0.61) % tile.wMm) + tile.wMm) % tile.wMm;
+  const oy = (((piece.y * 0.61) % tile.hMm) + tile.hMm) % tile.hMm;
+  return { x: -ox, y: -oy };
+}
+
+/**
  * A placed, cuttable piece. Geometry (pathMm) is authored in millimeters;
  * placement maps it onto the garment photo:
  *   x, y      — position of the piece's local origin, in garment-image px
